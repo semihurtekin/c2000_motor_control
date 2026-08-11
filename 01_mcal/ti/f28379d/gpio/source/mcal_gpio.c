@@ -11,11 +11,12 @@
 /*  - Input qualification mode and shared qualification period               */
 /*  - Digital GPIO/peripheral mux selection                                  */
 /*  - CPU/CLA data-register ownership selection                              */
+/*  - GPIO configuration lock, unlock and commit                             */
 /*  - Atomic pin write and toggle                                            */
 /*  - Pin read                                                               */
 /*                                                                           */
-/*  Analog mode, lock/commit and public port-level data services are outside */
-/*  the current implementation stage.                                       */
+/*  Analog mode and public port-level data services are outside the current  */
+/*  implementation stage.                                                   */
 /*                                                                           */
 /*****************************************************************************/
 
@@ -94,6 +95,12 @@ static volatile uint32_t * GetGmuxReg(
 static volatile uint32_t * GetCselReg(
     uint16_t portIndex,
     uint16_t regIndex);
+
+static volatile uint32_t * GetLockReg(
+    uint16_t portIndex);
+
+static volatile uint32_t * GetCommitReg(
+    uint16_t portIndex);
 
 static void WriteBit(
     volatile uint32_t * regPtr,
@@ -738,6 +745,80 @@ static volatile uint32_t * GetCselReg(
 }
 
 /**
+ * @brief Resolves the configuration lock register of one GPIO port.
+ */
+static volatile uint32_t * GetLockReg(
+    uint16_t portIndex)
+{
+    volatile uint32_t * regPtr;
+
+    regPtr = NULL;
+
+    switch (portIndex)
+    {
+        case 0U:
+            regPtr = &GpioCtrlRegs.GPALOCK.all;
+            break;
+        case 1U:
+            regPtr = &GpioCtrlRegs.GPBLOCK.all;
+            break;
+        case 2U:
+            regPtr = &GpioCtrlRegs.GPCLOCK.all;
+            break;
+        case 3U:
+            regPtr = &GpioCtrlRegs.GPDLOCK.all;
+            break;
+        case 4U:
+            regPtr = &GpioCtrlRegs.GPELOCK.all;
+            break;
+        case 5U:
+            regPtr = &GpioCtrlRegs.GPFLOCK.all;
+            break;
+        default:
+            break;
+    }
+
+    return regPtr;
+}
+
+/**
+ * @brief Resolves the lock commit register of one GPIO port.
+ */
+static volatile uint32_t * GetCommitReg(
+    uint16_t portIndex)
+{
+    volatile uint32_t * regPtr;
+
+    regPtr = NULL;
+
+    switch (portIndex)
+    {
+        case 0U:
+            regPtr = &GpioCtrlRegs.GPACR.all;
+            break;
+        case 1U:
+            regPtr = &GpioCtrlRegs.GPBCR.all;
+            break;
+        case 2U:
+            regPtr = &GpioCtrlRegs.GPCCR.all;
+            break;
+        case 3U:
+            regPtr = &GpioCtrlRegs.GPDCR.all;
+            break;
+        case 4U:
+            regPtr = &GpioCtrlRegs.GPECR.all;
+            break;
+        case 5U:
+            regPtr = &GpioCtrlRegs.GPFCR.all;
+            break;
+        default:
+            break;
+    }
+
+    return regPtr;
+}
+
+/**
  * @brief Updates one 1-bit field in a control register.
  */
 static void WriteBit(
@@ -1357,6 +1438,133 @@ Mcal_GpioStatusType Mcal_Gpio_SetMux(
         EALLOW;
         status = SetPinMux(pin, mux);
         EDIS;
+    }
+
+    return status;
+}
+
+/**
+ * @brief Locks the configuration of one GPIO pin.
+ */
+Mcal_GpioStatusType Mcal_Gpio_Lock(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else
+        {
+            EALLOW;
+            *lockReg |= pinMask;
+            EDIS;
+        }
+    }
+
+    return status;
+}
+
+/**
+ * @brief Unlocks the configuration of one GPIO pin.
+ */
+Mcal_GpioStatusType Mcal_Gpio_Unlock(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else
+        {
+            EALLOW;
+            *lockReg &= ~pinMask;
+            EDIS;
+        }
+    }
+
+    return status;
+}
+
+/**
+ * @brief Locks and commits the configuration of one GPIO pin.
+ */
+Mcal_GpioStatusType Mcal_Gpio_CommitLock(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else
+        {
+            EALLOW;
+            *lockReg |= pinMask;
+            *commitReg |= pinMask;
+            EDIS;
+
+            if (((*lockReg & pinMask) == 0U) ||
+                ((*commitReg & pinMask) == 0U))
+            {
+                status = MCAL_GPIO_STATUS_INV_CFG;
+            }
+        }
     }
 
     return status;

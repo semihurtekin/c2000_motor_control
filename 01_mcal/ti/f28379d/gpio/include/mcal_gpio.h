@@ -131,7 +131,8 @@ typedef enum
     MCAL_GPIO_STATUS_OK = 0U,
     MCAL_GPIO_STATUS_INV_PIN = 1U,
     MCAL_GPIO_STATUS_INV_ARG = 2U,
-    MCAL_GPIO_STATUS_INV_CFG = 3U
+    MCAL_GPIO_STATUS_INV_CFG = 3U,
+    MCAL_GPIO_STATUS_COMMITTED = 4U
 } Mcal_GpioStatusType;
 
 /*****************************************************************************/
@@ -184,6 +185,49 @@ Mcal_GpioStatusType Mcal_Gpio_SetQualPeriod(
 Mcal_GpioStatusType Mcal_Gpio_SetMux(
     Mcal_GpioPinType pin,
     Mcal_GpioMuxType mux);
+
+/**
+ * @brief Locks the configuration of one GPIO pin.
+ *
+ * @param[in] pin GPIO pin number.
+ *
+ * @return GPIO service status.
+ *
+ * @note Locking affects configuration registers only. GPIO data can still be
+ *       changed through the data-path services.
+ *
+ * @note If the lock state was previously committed, this service returns
+ *       MCAL_GPIO_STATUS_COMMITTED and does not modify the lock register.
+ */
+Mcal_GpioStatusType Mcal_Gpio_Lock(
+    Mcal_GpioPinType pin);
+
+/**
+ * @brief Unlocks the configuration of one GPIO pin.
+ *
+ * @param[in] pin GPIO pin number.
+ *
+ * @return GPIO service status.
+ *
+ * @note If the lock state was previously committed, this service returns
+ *       MCAL_GPIO_STATUS_COMMITTED and the pin remains locked.
+ */
+Mcal_GpioStatusType Mcal_Gpio_Unlock(
+    Mcal_GpioPinType pin);
+
+/**
+ * @brief Locks and commits the configuration of one GPIO pin.
+ *
+ * @param[in] pin GPIO pin number.
+ *
+ * @return GPIO service status.
+ *
+ * @note This service first locks the pin and then commits the lock state.
+ *       After a successful commit, lock and unlock writes have no effect
+ *       until the device is reset.
+ */
+Mcal_GpioStatusType Mcal_Gpio_CommitLock(
+    Mcal_GpioPinType pin);
 
 /**
  * @brief Writes a logical level to a GPIO pin.
