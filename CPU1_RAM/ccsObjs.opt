@@ -8,6 +8,7 @@
 "./F2837xD_SysCtrl.obj"
 "./F2837xD_usDelay.obj"
 "./main_cpu01.obj"
+"./00_platform/ti/f28379d/system/source/Mcal_System.obj"
 -l2837xD_RAM_lnk_cpu1.cmd
 -lF2837xD_Headers_nonBIOS_cpu1.cmd
 -llibc.a
