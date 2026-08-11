@@ -15,8 +15,8 @@
 /*  - Atomic pin write and toggle                                            */
 /*  - Pin read                                                               */
 /*                                                                           */
-/*  Analog mode and public port-level data services are outside the current  */
-/*  implementation stage.                                                   */
+/*  Analog/USB mode and public port-level data services are intentionally   */
+/*  excluded from the motor-control GPIO v1.0 scope.                        */
 /*                                                                           */
 /*****************************************************************************/
 
@@ -52,6 +52,12 @@ static Mcal_GpioStatusType IsLevelValid(
 
 static Mcal_GpioStatusType IsDividerValid(
     uint16_t divider);
+
+static Mcal_GpioStatusType CheckPinAccess(
+    Mcal_GpioPinType pin);
+
+static Mcal_GpioStatusType CheckQualAccess(
+    Mcal_GpioPinType pin);
 
 static Mcal_GpioStatusType ValidateConfig(
     const Mcal_GpioConfigType * config);
@@ -231,6 +237,95 @@ static Mcal_GpioStatusType IsDividerValid(
     else
     {
         status = MCAL_GPIO_STATUS_INV_ARG;
+    }
+
+    return status;
+}
+
+/**
+ * @brief Checks whether one pin configuration can be modified.
+ */
+static Mcal_GpioStatusType CheckPinAccess(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else if ((*lockReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_LOCKED;
+        }
+        else
+        {
+            /* Configuration access is available. */
+        }
+    }
+
+    return status;
+}
+
+/**
+ * @brief Checks access to one shared qualification-period group.
+ */
+static Mcal_GpioStatusType CheckQualAccess(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint16_t bitIndex;
+    uint16_t groupBase;
+    uint32_t groupMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        bitIndex = GetBitIndex(pin);
+        groupBase = (uint16_t)((bitIndex / MCAL_GPIO_QUAL_SIZE) *
+                               MCAL_GPIO_QUAL_SIZE);
+        groupMask = ((uint32_t)0xFFU << groupBase);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & groupMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else if ((*lockReg & groupMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_LOCKED;
+        }
+        else
+        {
+            /* Shared qualification configuration is available. */
+        }
     }
 
     return status;
@@ -1330,6 +1425,11 @@ Mcal_GpioStatusType Mcal_Gpio_InitPin(
 
     if (status == MCAL_GPIO_STATUS_OK)
     {
+        status = CheckPinAccess(config->pin);
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
         portIndex = GetPortIndex(config->pin);
         pinMask = GetPinMask(config->pin);
 
@@ -1408,6 +1508,11 @@ Mcal_GpioStatusType Mcal_Gpio_SetQualPeriod(
 
     if (status == MCAL_GPIO_STATUS_OK)
     {
+        status = CheckQualAccess(pin);
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
         EALLOW;
         status = SetQualPeriod(pin, divider);
         EDIS;
@@ -1431,6 +1536,11 @@ Mcal_GpioStatusType Mcal_Gpio_SetMux(
         (mux > MCAL_GPIO_MAX_MUX))
     {
         status = MCAL_GPIO_STATUS_INV_ARG;
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        status = CheckPinAccess(pin);
     }
 
     if (status == MCAL_GPIO_STATUS_OK)

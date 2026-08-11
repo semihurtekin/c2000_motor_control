@@ -106,5 +106,6 @@ S62_DEPS__QUOTED :=
 # Every subdirectory with source files must be described here
 SUBDIRS := \
 . \
-00_platform/ti/f28379d/system/source \
+01_mcal/ti/f28379d/gpio/source \
+08_labs/00_gpio_output_lab \
 

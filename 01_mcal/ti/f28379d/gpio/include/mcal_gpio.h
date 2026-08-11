@@ -132,7 +132,8 @@ typedef enum
     MCAL_GPIO_STATUS_INV_PIN = 1U,
     MCAL_GPIO_STATUS_INV_ARG = 2U,
     MCAL_GPIO_STATUS_INV_CFG = 3U,
-    MCAL_GPIO_STATUS_COMMITTED = 4U
+    MCAL_GPIO_STATUS_COMMITTED = 4U,
+    MCAL_GPIO_STATUS_LOCKED = 5U
 } Mcal_GpioStatusType;
 
 /*****************************************************************************/
@@ -166,6 +167,10 @@ Mcal_GpioStatusType Mcal_Gpio_InitPin(
  *                    from 2 through 510.
  *
  * @return GPIO service status.
+ *
+ * @note Because the qualification divider is shared by eight pins, this
+ *       service rejects the update if any pin in the affected group is
+ *       locked or committed by this driver.
  */
 Mcal_GpioStatusType Mcal_Gpio_SetQualPeriod(
     Mcal_GpioPinType pin,
