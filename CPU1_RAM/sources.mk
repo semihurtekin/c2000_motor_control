@@ -107,5 +107,6 @@ S62_DEPS__QUOTED :=
 SUBDIRS := \
 . \
 01_mcal/ti/f28379d/gpio/source \
-08_labs/00_gpio_output_lab \
+01_mcal/ti/f28379d/timer/source \
+08_labs/01_timer_lab \
 

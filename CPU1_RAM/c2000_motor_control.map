@@ -1,7 +1,7 @@
 ******************************************************************************
              TMS320C2000 Linker PC v25.11.1                    
 ******************************************************************************
->> Linked Tue Aug 11 14:52:36 2026
+>> Linked Wed Aug 12 15:17:22 2026
 
 OUTPUT FILE NAME:   <c2000_motor_control.out>
 ENTRY POINT SYMBOL: "code_start"  address: 00000000
@@ -19,7 +19,7 @@ PAGE 0:
   RAMLS2                00009000   00000800  00000000  00000800  RWIX
   RAMLS3                00009800   00000800  00000000  00000800  RWIX
   RAMLS4                0000a000   00000800  00000000  00000800  RWIX
-  RAMD0                 0000b000   00000800  000006f9  00000107  RWIX
+  RAMD0                 0000b000   00000800  000007d4  0000002c  RWIX
   FLASHA                00080002   00001ffe  00000000  00001ffe  RWIX
   FLASHB                00082000   00002000  00000000  00002000  RWIX
   FLASHC                00084000   00002000  00000000  00002000  RWIX
@@ -655,7 +655,7 @@ UidRegsFile
 *          1    000703c0    00000010     UNINITIALIZED
                   000703c0    00000010     F2837xD_GlobalVariableDefs.obj (UidRegsFile)
 
-.text      0    0000b000    000006f9     
+.text      0    0000b000    000007d4     
                   0000b000    000000aa     mcal_gpio.obj (.text:_GetCselReg)
                   0000b0aa    00000077     mcal_gpio.obj (.text:_Mcal_Gpio_InitPin)
                   0000b121    00000072     mcal_gpio.obj (.text:_ValidateConfig)
@@ -666,37 +666,46 @@ UidRegsFile
                   0000b2cd    0000003a     mcal_gpio.obj (.text:_SetPinMux)
                   0000b307    00000035     mcal_gpio.obj (.text:_WriteClear)
                   0000b33c    00000035     mcal_gpio.obj (.text:_WriteSet)
-                  0000b371    00000035     gpio_output_lab.obj (.text:_main)
-                  0000b3a6    00000031     mcal_gpio.obj (.text:_CheckPinAccess)
-                  0000b3d7    00000030     mcal_gpio.obj (.text:_GetCommitReg)
-                  0000b407    00000030     mcal_gpio.obj (.text:_GetDirReg)
-                  0000b437    00000030     mcal_gpio.obj (.text:_GetInvReg)
-                  0000b467    00000030     mcal_gpio.obj (.text:_GetLockReg)
-                  0000b497    00000030     mcal_gpio.obj (.text:_GetOdrReg)
-                  0000b4c7    00000030     mcal_gpio.obj (.text:_GetPudReg)
-                  0000b4f7    00000029     rts2800_fpu32.lib : exit.c.obj (.text)
-                  0000b520    00000025     mcal_gpio.obj (.text:_Mcal_Gpio_Write)
-                  0000b545    00000024     rts2800_fpu32.lib : cpy_tbl.c.obj (.text)
-                  0000b569    00000022     mcal_gpio.obj (.text:_SetDirection)
-                  0000b58b    00000022     mcal_gpio.obj (.text:_SetInvert)
-                  0000b5ad    00000022     mcal_gpio.obj (.text:_SetOpenDrain)
-                  0000b5cf    00000022     mcal_gpio.obj (.text:_SetPull)
-                  0000b5f1    00000021     mcal_gpio.obj (.text:_SetOwner)
-                  0000b612    00000021     mcal_gpio.obj (.text:_SetQual)
-                  0000b633    00000020     rts2800_fpu32.lib : memcpy.c.obj (.text)
-                  0000b653    0000001d     mcal_gpio.obj (.text:_Write2Bit)
-                  0000b670    0000001d     mcal_gpio.obj (.text:_Write4Bit)
-                  0000b68d    00000018     mcal_gpio.obj (.text:_WriteBit)
-                  0000b6a5    00000012     rts2800_fpu32.lib : args_main.c.obj (.text)
-                  0000b6b7    0000000d     mcal_gpio.obj (.text:_IsLevelValid)
-                  0000b6c4    0000000b     mcal_gpio.obj (.text:_GetPinMask)
-                  0000b6cf    0000000b     mcal_gpio.obj (.text:_IsPinValid)
-                  0000b6da    00000009     rts2800_fpu32.lib : _lock.c.obj (.text)
-                  0000b6e3    00000008     F2837xD_CodeStartBranch.obj (.text)
-                  0000b6eb    00000006     mcal_gpio.obj (.text:_GetBitIndex)
-                  0000b6f1    00000005     mcal_gpio.obj (.text:_GetPortIndex)
-                  0000b6f6    00000002     rts2800_fpu32.lib : pre_init.c.obj (.text)
-                  0000b6f8    00000001                       : startup.c.obj (.text)
+                  0000b371    00000035     mcal_gpio.obj (.text:_WriteToggle)
+                  0000b3a6    00000032     mcal_timer.obj (.text:_Mcal_Timer_Init)
+                  0000b3d8    00000031     mcal_gpio.obj (.text:_CheckPinAccess)
+                  0000b409    00000030     mcal_gpio.obj (.text:_GetCommitReg)
+                  0000b439    00000030     mcal_gpio.obj (.text:_GetDirReg)
+                  0000b469    00000030     mcal_gpio.obj (.text:_GetInvReg)
+                  0000b499    00000030     mcal_gpio.obj (.text:_GetLockReg)
+                  0000b4c9    00000030     mcal_gpio.obj (.text:_GetOdrReg)
+                  0000b4f9    00000030     mcal_gpio.obj (.text:_GetPudReg)
+                  0000b529    0000002e     timer_lab.obj (.text:_main)
+                  0000b557    00000029     rts2800_fpu32.lib : exit.c.obj (.text)
+                  0000b580    00000024                       : cpy_tbl.c.obj (.text)
+                  0000b5a4    00000022     mcal_gpio.obj (.text:_SetDirection)
+                  0000b5c6    00000022     mcal_gpio.obj (.text:_SetInvert)
+                  0000b5e8    00000022     mcal_gpio.obj (.text:_SetOpenDrain)
+                  0000b60a    00000022     mcal_gpio.obj (.text:_SetPull)
+                  0000b62c    00000021     mcal_gpio.obj (.text:_SetOwner)
+                  0000b64d    00000021     mcal_gpio.obj (.text:_SetQual)
+                  0000b66e    00000020     rts2800_fpu32.lib : memcpy.c.obj (.text)
+                  0000b68e    0000001d     mcal_timer.obj (.text:_Mcal_Timer_IsElapsed)
+                  0000b6ab    0000001d     mcal_gpio.obj (.text:_Write2Bit)
+                  0000b6c8    0000001d     mcal_gpio.obj (.text:_Write4Bit)
+                  0000b6e5    0000001a     mcal_timer.obj (.text:_GetTimerRegs)
+                  0000b6ff    00000018     mcal_timer.obj (.text:_Mcal_Timer_Start)
+                  0000b717    00000018     mcal_gpio.obj (.text:_WriteBit)
+                  0000b72f    00000016     mcal_timer.obj (.text:_Mcal_Timer_ClearFlag)
+                  0000b745    00000015     mcal_gpio.obj (.text:_Mcal_Gpio_Toggle)
+                  0000b75a    00000012     rts2800_fpu32.lib : args_main.c.obj (.text)
+                  0000b76c    0000000f     mcal_timer.obj (.text:_IsTimerValid)
+                  0000b77b    0000000e     mcal_timer.obj (.text:_IsConfigValid)
+                  0000b789    0000000d     mcal_gpio.obj (.text:_IsLevelValid)
+                  0000b796    0000000b     mcal_gpio.obj (.text:_GetPinMask)
+                  0000b7a1    0000000b     mcal_gpio.obj (.text:_IsPinValid)
+                  0000b7ac    00000009     mcal_timer.obj (.text:_GetTcrForWrite)
+                  0000b7b5    00000009     rts2800_fpu32.lib : _lock.c.obj (.text)
+                  0000b7be    00000008     F2837xD_CodeStartBranch.obj (.text)
+                  0000b7c6    00000006     mcal_gpio.obj (.text:_GetBitIndex)
+                  0000b7cc    00000005     mcal_gpio.obj (.text:_GetPortIndex)
+                  0000b7d1    00000002     rts2800_fpu32.lib : pre_init.c.obj (.text)
+                  0000b7d3    00000001                       : startup.c.obj (.text)
 
 MODULE SUMMARY
 
@@ -709,14 +718,19 @@ MODULE SUMMARY
        Total:                           10     0                  9870              
                                                                                     
     .\01_mcal\ti\f28379d\gpio\source\
-       mcal_gpio.obj                    1499   0                  0                 
+       mcal_gpio.obj                    1536   0                  0                 
     +--+--------------------------------+------+------------------+--------------------+
-       Total:                           1499   0                  0                 
+       Total:                           1536   0                  0                 
                                                                                     
-    .\08_labs\00_gpio_output_lab\
-       gpio_output_lab.obj              53     0                  0                 
+    .\01_mcal\ti\f28379d\timer\source\
+       mcal_timer.obj                   189    0                  0                 
     +--+--------------------------------+------+------------------+--------------------+
-       Total:                           53     0                  0                 
+       Total:                           189    0                  0                 
+                                                                                    
+    .\08_labs\01_timer_lab\
+       timer_lab.obj                    46     0                  0                 
+    +--+--------------------------------+------+------------------+--------------------+
+       Total:                           46     0                  0                 
                                                                                     
     C:\ti\ccs2100\ccs\tools\compiler\ti-cgt-c2000_25.11.1.LTS\lib\rts2800_fpu32.lib
        boot28.asm.obj                   86     0                  0                 
@@ -732,7 +746,7 @@ MODULE SUMMARY
                                                                                     
        Stack:                           0      0                  256               
     +--+--------------------------------+------+------------------+--------------------+
-       Grand Total:                     1787   24                 10136             
+       Grand Total:                     2006   24                 10136             
 
 
 GLOBAL DATA SYMBOLS: SORTED BY DATA PAGE
@@ -946,7 +960,7 @@ GLOBAL SYMBOLS: SORTED ALPHABETICALLY BY Name
 page  address   name                            
 ----  -------   ----                            
 abs   ffffffff  .text                           
-0     0000b4f7  C$$EXIT                         
+0     0000b557  C$$EXIT                         
 1     0005f4c0  _AccessProtectionRegs           
 1     00007400  _AdcaRegs                       
 1     00000b00  _AdcaResultRegs                 
@@ -1031,7 +1045,11 @@ abs   ffffffff  .text
 1     00007900  _InputXbarRegs                  
 1     00050000  _IpcRegs                        
 0     0000b0aa  _Mcal_Gpio_InitPin              
-0     0000b520  _Mcal_Gpio_Write                
+0     0000b745  _Mcal_Gpio_Toggle               
+0     0000b72f  _Mcal_Timer_ClearFlag           
+0     0000b3a6  _Mcal_Timer_Init                
+0     0000b68e  _Mcal_Timer_IsElapsed           
+0     0000b6ff  _Mcal_Timer_Start               
 1     00006000  _McbspaRegs                     
 1     00006040  _McbspbRegs                     
 1     0005f400  _MemCfgRegs                     
@@ -1071,21 +1089,21 @@ abs   ffffffff  ___c_args__
 abs   ffffffff  ___etext__                      
 abs   ffffffff  ___pinit__                      
 abs   ffffffff  ___text__                       
-0     0000b6a5  __args_main                     
+0     0000b75a  __args_main                     
 1     0000a806  __lock                          
-0     0000b6e2  __nop                           
-0     0000b6de  __register_lock                 
-0     0000b6da  __register_unlock               
+0     0000b7bd  __nop                           
+0     0000b7b9  __register_lock                 
+0     0000b7b5  __register_unlock               
 1     00000400  __stack                         
-0     0000b6f8  __system_post_cinit             
-0     0000b6f6  __system_pre_init               
+0     0000b7d3  __system_post_cinit             
+0     0000b7d1  __system_pre_init               
 1     0000a808  __unlock                        
-0     0000b4f7  _abort                          
+0     0000b557  _abort                          
 0     0000b193  _c_int00                        
-0     0000b545  _copy_in                        
-0     0000b4f9  _exit                           
-0     0000b371  _main                           
-0     0000b633  _memcpy                         
+0     0000b580  _copy_in                        
+0     0000b559  _exit                           
+0     0000b529  _main                           
+0     0000b66e  _memcpy                         
 abs   ffffffff  binit                           
 0     00000123  cinit                           
 0     00000000  code_start                      
@@ -1102,19 +1120,23 @@ page  address   name
 0     00000123  cinit                           
 0     0000b0aa  _Mcal_Gpio_InitPin              
 0     0000b193  _c_int00                        
-0     0000b371  _main                           
-0     0000b4f7  C$$EXIT                         
-0     0000b4f7  _abort                          
-0     0000b4f9  _exit                           
-0     0000b520  _Mcal_Gpio_Write                
-0     0000b545  _copy_in                        
-0     0000b633  _memcpy                         
-0     0000b6a5  __args_main                     
-0     0000b6da  __register_unlock               
-0     0000b6de  __register_lock                 
-0     0000b6e2  __nop                           
-0     0000b6f6  __system_pre_init               
-0     0000b6f8  __system_post_cinit             
+0     0000b3a6  _Mcal_Timer_Init                
+0     0000b529  _main                           
+0     0000b557  C$$EXIT                         
+0     0000b557  _abort                          
+0     0000b559  _exit                           
+0     0000b580  _copy_in                        
+0     0000b66e  _memcpy                         
+0     0000b68e  _Mcal_Timer_IsElapsed           
+0     0000b6ff  _Mcal_Timer_Start               
+0     0000b72f  _Mcal_Timer_ClearFlag           
+0     0000b745  _Mcal_Gpio_Toggle               
+0     0000b75a  __args_main                     
+0     0000b7b5  __register_unlock               
+0     0000b7b9  __register_lock                 
+0     0000b7bd  __nop                           
+0     0000b7d1  __system_pre_init               
+0     0000b7d3  __system_post_cinit             
 1     00000400  __stack                         
 1     00000500  __STACK_END                     
 1     00000b00  _AdcaResultRegs                 
@@ -1244,4 +1266,4 @@ abs   ffffffff  binit
 abs   ffffffff  etext                           
 abs   ffffffff  pinit                           
 
-[146 symbols]
+[150 symbols]

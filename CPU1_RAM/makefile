@@ -13,7 +13,8 @@ ORDERED_OBJS += \
 "./F2837xD_CodeStartBranch.obj" \
 "./F2837xD_GlobalVariableDefs.obj" \
 "./01_mcal/ti/f28379d/gpio/source/mcal_gpio.obj" \
-"./08_labs/00_gpio_output_lab/gpio_output_lab.obj" \
+"./01_mcal/ti/f28379d/timer/source/mcal_timer.obj" \
+"./08_labs/01_timer_lab/timer_lab.obj" \
 $(GEN_CMDS__FLAG) \
 -l2837xD_RAM_lnk_cpu1.cmd \
 -lF2837xD_Headers_nonBIOS_cpu1.cmd \
@@ -28,10 +29,12 @@ RMDIR := RMDIR /S/Q
 -include sources.mk
 -include subdir_vars.mk
 -include 01_mcal/ti/f28379d/gpio/source/subdir_vars.mk
--include 08_labs/00_gpio_output_lab/subdir_vars.mk
+-include 01_mcal/ti/f28379d/timer/source/subdir_vars.mk
+-include 08_labs/01_timer_lab/subdir_vars.mk
 -include subdir_rules.mk
 -include 01_mcal/ti/f28379d/gpio/source/subdir_rules.mk
--include 08_labs/00_gpio_output_lab/subdir_rules.mk
+-include 01_mcal/ti/f28379d/timer/source/subdir_rules.mk
+-include 08_labs/01_timer_lab/subdir_rules.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -141,8 +144,8 @@ c2000_motor_control.out: $(OBJS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(EXE_OUTPUTS__QUOTED)
-	-$(RM) "F2837xD_CodeStartBranch.obj" "F2837xD_GlobalVariableDefs.obj" "01_mcal\ti\f28379d\gpio\source\mcal_gpio.obj" "08_labs\00_gpio_output_lab\gpio_output_lab.obj" 
-	-$(RM) "F2837xD_GlobalVariableDefs.d" "01_mcal\ti\f28379d\gpio\source\mcal_gpio.d" "08_labs\00_gpio_output_lab\gpio_output_lab.d" 
+	-$(RM) "F2837xD_CodeStartBranch.obj" "F2837xD_GlobalVariableDefs.obj" "01_mcal\ti\f28379d\gpio\source\mcal_gpio.obj" "01_mcal\ti\f28379d\timer\source\mcal_timer.obj" "08_labs\01_timer_lab\timer_lab.obj" 
+	-$(RM) "F2837xD_GlobalVariableDefs.d" "01_mcal\ti\f28379d\gpio\source\mcal_gpio.d" "01_mcal\ti\f28379d\timer\source\mcal_timer.d" "08_labs\01_timer_lab\timer_lab.d" 
 	-$(RM) "F2837xD_CodeStartBranch.d" 
 	-@echo ' '
 

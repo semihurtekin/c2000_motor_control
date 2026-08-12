@@ -48,9 +48,11 @@
                                     <listOptionValue value="${CG_TOOL_ROOT}/include"/>
                                     <listOptionValue value="${INSTALLROOT_F2837XD}/headers/include"/>
                                     <listOptionValue value="${INSTALLROOT_F2837XD}/common/include"/>
-                                    <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/08_labs/00_gpio_output_lab"/>
                                     <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/gpio/source"/>
                                     <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/gpio/include"/>
+                                    <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/timer/source"/>
+                                    <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/timer/include"/>
+                                    <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/08_labs/01_timer_lab"/>
                                 </option>
                                 <option id="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEBUGGING_MODEL.710513139" superClass="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEBUGGING_MODEL" value="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEBUGGING_MODEL.SYMDEBUG__DWARF" valueType="enumerated"/>
                                 <option id="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE.223005138" superClass="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE" valueType="definedSymbols">
@@ -89,7 +91,7 @@
                         </toolChain>
                     </folderInfo>
                     <sourceEntries>
-                        <entry excluding="F2837xD_DefaultISR.c|F2837xD_Ipc.c|F2837xD_PieCtrl.c|F2837xD_PieVect.c|F2837xD_SysCtrl.c|F2837xD_usDelay.asm|main_cpu01.c|F2837xD_Gpio.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="main_cpu01.c|08_labs/00_gpio_output_lab|F2837xD_DefaultISR.c|F2837xD_Ipc.c|F2837xD_PieCtrl.c|F2837xD_PieVect.c|F2837xD_SysCtrl.c|F2837xD_usDelay.asm|F2837xD_Gpio.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                     </sourceEntries>
                 </configuration>
             </storageModule>
