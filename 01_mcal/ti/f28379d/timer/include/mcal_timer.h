@@ -133,6 +133,26 @@ Mcal_TimerStatusType Mcal_Timer_IsElapsed(
 Mcal_TimerStatusType Mcal_Timer_ClearFlag(
     Mcal_TimerIdType timer);
 
+/**
+ * @brief Enables local interrupt generation for the selected CPU timer.
+ *
+ * @param timer CPU timer identifier.
+ *
+ * @return Driver status.
+ */
+Mcal_TimerStatusType Mcal_Timer_EnableInt(
+    Mcal_TimerIdType timer);
+
+/**
+ * @brief Disables local interrupt generation for the selected CPU timer.
+ *
+ * @param timer CPU timer identifier.
+ *
+ * @return Driver status.
+ */
+Mcal_TimerStatusType Mcal_Timer_DisableInt(
+    Mcal_TimerIdType timer);
+
 #ifdef __cplusplus
 }
 #endif
