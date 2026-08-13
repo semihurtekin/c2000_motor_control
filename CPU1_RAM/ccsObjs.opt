@@ -1,8 +1,0 @@
-"./F2837xD_CodeStartBranch.obj"
-"./F2837xD_GlobalVariableDefs.obj"
-"./01_mcal/ti/f28379d/gpio/source/mcal_gpio.obj"
-"./01_mcal/ti/f28379d/timer/source/mcal_timer.obj"
-"./08_labs/01_timer_lab/timer_lab.obj"
--l2837xD_RAM_lnk_cpu1.cmd
--lF2837xD_Headers_nonBIOS_cpu1.cmd
--llibc.a

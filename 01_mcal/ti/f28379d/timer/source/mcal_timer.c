@@ -70,7 +70,7 @@ Mcal_TimerStatusType Mcal_Timer_Init(
 
     status = IsConfigValid(config);
 
-    if (status == MCAL_TIMER_STATUS_OK)
+    if(status == MCAL_TIMER_STATUS_OK)
     {
         timerRegs = GetTimerRegs(config->timer);
 
@@ -95,6 +95,10 @@ Mcal_TimerStatusType Mcal_Timer_Init(
         tcrValue |= MCAL_TIMER_TCR_TIF_MASK;
         timerRegs->TCR.all = tcrValue;
     }
+    else
+    {
+        /* Do nothing. */
+    }
 
     return status;
 }
@@ -108,7 +112,7 @@ Mcal_TimerStatusType Mcal_Timer_Start(
 
     status = IsTimerValid(timer);
 
-    if (status == MCAL_TIMER_STATUS_OK)
+    if(status == MCAL_TIMER_STATUS_OK)
     {
         timerRegs = GetTimerRegs(timer);
 
@@ -117,6 +121,10 @@ Mcal_TimerStatusType Mcal_Timer_Start(
         tcrValue |= MCAL_TIMER_TCR_TRB_MASK;
         tcrValue &= (uint16_t)(~MCAL_TIMER_TCR_TSS_MASK);
         timerRegs->TCR.all = tcrValue;
+    }
+    else
+    {
+        /* Do nothing. */
     }
 
     return status;
@@ -131,13 +139,17 @@ Mcal_TimerStatusType Mcal_Timer_Stop(
 
     status = IsTimerValid(timer);
 
-    if (status == MCAL_TIMER_STATUS_OK)
+    if(status == MCAL_TIMER_STATUS_OK)
     {
         timerRegs = GetTimerRegs(timer);
 
         tcrValue = GetTcrForWrite(timerRegs);
         tcrValue |= MCAL_TIMER_TCR_TSS_MASK;
         timerRegs->TCR.all = tcrValue;
+    }
+    else
+    {
+        /* Do nothing. */
     }
 
     return status;
@@ -152,13 +164,17 @@ Mcal_TimerStatusType Mcal_Timer_Resume(
 
     status = IsTimerValid(timer);
 
-    if (status == MCAL_TIMER_STATUS_OK)
+    if(status == MCAL_TIMER_STATUS_OK)
     {
         timerRegs = GetTimerRegs(timer);
 
         tcrValue = GetTcrForWrite(timerRegs);
         tcrValue &= (uint16_t)(~MCAL_TIMER_TCR_TSS_MASK);
         timerRegs->TCR.all = tcrValue;
+    }
+    else
+    {
+        /* Do nothing. */
     }
 
     return status;
@@ -173,13 +189,17 @@ Mcal_TimerStatusType Mcal_Timer_Reload(
 
     status = IsTimerValid(timer);
 
-    if (status == MCAL_TIMER_STATUS_OK)
+    if(status == MCAL_TIMER_STATUS_OK)
     {
         timerRegs = GetTimerRegs(timer);
 
         tcrValue = GetTcrForWrite(timerRegs);
         tcrValue |= MCAL_TIMER_TCR_TRB_MASK;
         timerRegs->TCR.all = tcrValue;
+    }
+    else
+    {
+        /* Do nothing. */
     }
 
     return status;
@@ -194,16 +214,21 @@ Mcal_TimerStatusType Mcal_Timer_GetCount(
 
     status = IsTimerValid(timer);
 
-    if ((status == MCAL_TIMER_STATUS_OK) &&
-        (countPtr == NULL))
+    if(status == MCAL_TIMER_STATUS_OK)
     {
-        status = MCAL_TIMER_STATUS_INV_ARG;
+        if(countPtr != NULL)
+        {
+            timerRegs = GetTimerRegs(timer);
+            *countPtr = timerRegs->TIM.all;
+        }
+        else
+        {
+            status = MCAL_TIMER_STATUS_INV_ARG;
+        }
     }
-
-    if (status == MCAL_TIMER_STATUS_OK)
+    else
     {
-        timerRegs = GetTimerRegs(timer);
-        *countPtr = timerRegs->TIM.all;
+        /* Do nothing. */
     }
 
     return status;
@@ -218,25 +243,30 @@ Mcal_TimerStatusType Mcal_Timer_IsElapsed(
 
     status = IsTimerValid(timer);
 
-    if ((status == MCAL_TIMER_STATUS_OK) &&
-        (elapsedPtr == NULL))
+    if(status == MCAL_TIMER_STATUS_OK)
     {
-        status = MCAL_TIMER_STATUS_INV_ARG;
-    }
-
-    if (status == MCAL_TIMER_STATUS_OK)
-    {
-        timerRegs = GetTimerRegs(timer);
-
-        if ((timerRegs->TCR.all &
-             MCAL_TIMER_TCR_TIF_MASK) != 0U)
+        if(elapsedPtr != NULL)
         {
-            *elapsedPtr = 1U;
+            timerRegs = GetTimerRegs(timer);
+
+            if((timerRegs->TCR.all &
+                MCAL_TIMER_TCR_TIF_MASK) != 0U)
+            {
+                *elapsedPtr = 1U;
+            }
+            else
+            {
+                *elapsedPtr = 0U;
+            }
         }
         else
         {
-            *elapsedPtr = 0U;
+            status = MCAL_TIMER_STATUS_INV_ARG;
         }
+    }
+    else
+    {
+        /* Do nothing. */
     }
 
     return status;
@@ -251,13 +281,67 @@ Mcal_TimerStatusType Mcal_Timer_ClearFlag(
 
     status = IsTimerValid(timer);
 
-    if (status == MCAL_TIMER_STATUS_OK)
+    if(status == MCAL_TIMER_STATUS_OK)
     {
         timerRegs = GetTimerRegs(timer);
 
         tcrValue = GetTcrForWrite(timerRegs);
         tcrValue |= MCAL_TIMER_TCR_TIF_MASK;
         timerRegs->TCR.all = tcrValue;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Mcal_TimerStatusType Mcal_Timer_EnableInt(
+    Mcal_TimerIdType timer)
+{
+    Mcal_TimerStatusType status;
+    volatile struct CPUTIMER_REGS * timerRegs;
+    uint16_t tcrValue;
+
+    status = IsTimerValid(timer);
+
+    if(status == MCAL_TIMER_STATUS_OK)
+    {
+        timerRegs = GetTimerRegs(timer);
+        tcrValue = GetTcrForWrite(timerRegs);
+
+        tcrValue |= MCAL_TIMER_TCR_TIE_MASK;
+        timerRegs->TCR.all = tcrValue;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Mcal_TimerStatusType Mcal_Timer_DisableInt(
+    Mcal_TimerIdType timer)
+{
+    Mcal_TimerStatusType status;
+    volatile struct CPUTIMER_REGS * timerRegs;
+    uint16_t tcrValue;
+
+    status = IsTimerValid(timer);
+
+    if(status == MCAL_TIMER_STATUS_OK)
+    {
+        timerRegs = GetTimerRegs(timer);
+        tcrValue = GetTcrForWrite(timerRegs);
+
+        tcrValue &= (uint16_t)(~MCAL_TIMER_TCR_TIE_MASK);
+        timerRegs->TCR.all = tcrValue;
+    }
+    else
+    {
+        /* Do nothing. */
     }
 
     return status;
@@ -274,7 +358,7 @@ static volatile struct CPUTIMER_REGS * GetTimerRegs(
 
     timerRegs = NULL;
 
-    switch (timer)
+    switch(timer)
     {
         case MCAL_TIMER_0:
             timerRegs = &CpuTimer0Regs;
@@ -311,7 +395,7 @@ static Mcal_TimerStatusType IsConfigValid(
 {
     Mcal_TimerStatusType status;
 
-    if (config != NULL)
+    if(config != NULL)
     {
         status = IsTimerValid(config->timer);
     }
@@ -328,9 +412,9 @@ static Mcal_TimerStatusType IsTimerValid(
 {
     Mcal_TimerStatusType status;
 
-    if ((timer == MCAL_TIMER_0) ||
-        (timer == MCAL_TIMER_1) ||
-        (timer == MCAL_TIMER_2))
+    if((timer == MCAL_TIMER_0) ||
+       (timer == MCAL_TIMER_1) ||
+       (timer == MCAL_TIMER_2))
     {
         status = MCAL_TIMER_STATUS_OK;
     }
