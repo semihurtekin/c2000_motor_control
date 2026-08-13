@@ -1,12 +1,14 @@
-/*****************************************************************************/
-/*                                                                           */
-/*  File        : mcal_gpio.h                                                */
-/*  Description : GPIO MCAL public interface                                 */
-/*                                                                           */
-/*****************************************************************************/
+/**
+ * @file    mcal_gpio.h
+ * @brief   F28379D GPIO MCAL driver interface.
+ */
 
 #ifndef MCAL_GPIO_H
 #define MCAL_GPIO_H
+
+/*==============================================================================
+ * Includes
+ *============================================================================*/
 
 #include <stdint.h>
 
@@ -14,9 +16,9 @@
 extern "C" {
 #endif
 
-/*****************************************************************************/
-/* Public Types                                                              */
-/*****************************************************************************/
+/*==============================================================================
+ * Public Types
+ *============================================================================*/
 
 /**
  * @brief GPIO pin number type.
@@ -33,27 +35,18 @@ typedef uint16_t Mcal_GpioPinType;
  */
 typedef uint16_t Mcal_GpioMuxType;
 
-/**
- * @brief GPIO logical level.
- */
 typedef enum
 {
     MCAL_GPIO_LEVEL_LOW = 0U,
     MCAL_GPIO_LEVEL_HIGH = 1U
 } Mcal_GpioLevelType;
 
-/**
- * @brief GPIO pin direction.
- */
 typedef enum
 {
     MCAL_GPIO_DIR_INPUT = 0U,
     MCAL_GPIO_DIR_OUTPUT = 1U
 } Mcal_GpioDirType;
 
-/**
- * @brief GPIO internal pull-up configuration.
- */
 typedef enum
 {
     MCAL_GPIO_PULL_DISABLE = 0U,
@@ -73,18 +66,12 @@ typedef enum
     MCAL_GPIO_ODR_ENABLE = 1U
 } Mcal_GpioOdrType;
 
-/**
- * @brief GPIO input inversion configuration.
- */
 typedef enum
 {
     MCAL_GPIO_INV_DISABLE = 0U,
     MCAL_GPIO_INV_ENABLE = 1U
 } Mcal_GpioInvType;
 
-/**
- * @brief GPIO input qualification mode.
- */
 typedef enum
 {
     MCAL_GPIO_QUAL_SYNC = 0U,
@@ -123,9 +110,6 @@ typedef struct
     Mcal_GpioLevelType initLevel;
 } Mcal_GpioConfigType;
 
-/**
- * @brief GPIO service return status.
- */
 typedef enum
 {
     MCAL_GPIO_STATUS_OK = 0U,
@@ -136,9 +120,9 @@ typedef enum
     MCAL_GPIO_STATUS_LOCKED = 5U
 } Mcal_GpioStatusType;
 
-/*****************************************************************************/
-/* Public Function Declarations                                              */
-/*****************************************************************************/
+/*==============================================================================
+ * Public Function Declarations
+ *============================================================================*/
 
 /**
  * @brief Initializes one pin for GPIO operation.

@@ -48,7 +48,6 @@
                                     <listOptionValue value="${CG_TOOL_ROOT}/include"/>
                                     <listOptionValue value="${INSTALLROOT_F2837XD}/headers/include"/>
                                     <listOptionValue value="${INSTALLROOT_F2837XD}/common/include"/>
-                                    <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/08_labs/00_gpio_output_lab"/>
                                     <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/gpio/source"/>
                                     <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/gpio/include"/>
                                 </option>

@@ -1,33 +1,21 @@
-/*****************************************************************************/
-/*                                                                           */
-/*  File        : mcal_gpio.c                                                */
-/*  Description : GPIO MCAL implementation                                   */
-/*                                                                           */
-/*  Scope                                                                    */
-/*  -----                                                                    */
-/*  - GPIO0 through GPIO168                                                  */
-/*  - GPIO-function pin initialization                                       */
-/*  - Direction, pull-up, open-drain and inversion                           */
-/*  - Input qualification mode and shared qualification period               */
-/*  - Digital GPIO/peripheral mux selection                                  */
-/*  - CPU/CLA data-register ownership selection                              */
-/*  - GPIO configuration lock, unlock and commit                             */
-/*  - Atomic pin write and toggle                                            */
-/*  - Pin read                                                               */
-/*                                                                           */
-/*  Analog/USB mode and public port-level data services are intentionally   */
-/*  excluded from the motor-control GPIO v1.0 scope.                        */
-/*                                                                           */
-/*****************************************************************************/
+/**
+ * @file    mcal_gpio.c
+ * @brief   F28379D GPIO MCAL driver implementation.
+ */
+
+/*==============================================================================
+ * Includes
+ *============================================================================*/
 
 #include "mcal_gpio.h"
-#include "F2837xD_device.h"
 
 #include <stddef.h>
 
-/*****************************************************************************/
-/* Local Constants                                                           */
-/*****************************************************************************/
+#include "F2837xD_device.h"
+
+/*==============================================================================
+ * Private Macros
+ *============================================================================*/
 
 #define MCAL_GPIO_PORT_SIZE    (32U)
 #define MCAL_GPIO_MUX_SIZE     (16U)
@@ -40,9 +28,9 @@
 #define MCAL_GPIO_4BIT_MASK    ((uint32_t)0xFU)
 #define MCAL_GPIO_8BIT_MASK    ((uint32_t)0xFFU)
 
-/*****************************************************************************/
-/* Local Function Declarations                                               */
-/*****************************************************************************/
+/*==============================================================================
+ * Private Function Declarations
+ *============================================================================*/
 
 static Mcal_GpioStatusType IsPinValid(
     Mcal_GpioPinType pin);
@@ -175,13 +163,353 @@ static void WriteToggle(
 static uint32_t ReadPort(
     uint16_t portIndex);
 
-/*****************************************************************************/
-/* Local Function Definitions                                                */
-/*****************************************************************************/
+/*==============================================================================
+ * Public Function Definitions
+ *============================================================================*/
 
-/**
- * @brief Checks whether a GPIO pin number is supported.
- */
+Mcal_GpioStatusType Mcal_Gpio_InitPin(
+    const Mcal_GpioConfigType * config)
+{
+    Mcal_GpioStatusType status;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = ValidateConfig(config);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        status = CheckPinAccess(config->pin);
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(config->pin);
+        pinMask = GetPinMask(config->pin);
+
+        EALLOW;
+
+        status = SetDirection(config->pin, MCAL_GPIO_DIR_INPUT);
+
+        if (status == MCAL_GPIO_STATUS_OK)
+        {
+            status = SetPinMux(config->pin, (Mcal_GpioMuxType)0U);
+        }
+
+        if (status == MCAL_GPIO_STATUS_OK)
+        {
+            status = SetPull(config->pin, config->pull);
+        }
+
+        if (status == MCAL_GPIO_STATUS_OK)
+        {
+            status = SetOpenDrain(config->pin, config->odr);
+        }
+
+        if (status == MCAL_GPIO_STATUS_OK)
+        {
+            status = SetInvert(config->pin, config->inv);
+        }
+
+        if (status == MCAL_GPIO_STATUS_OK)
+        {
+            status = SetQual(config->pin, config->qual);
+        }
+
+        if (status == MCAL_GPIO_STATUS_OK)
+        {
+            status = SetOwner(config->pin, config->owner);
+        }
+
+        EDIS;
+
+        if ((status == MCAL_GPIO_STATUS_OK) &&
+            (config->dir == MCAL_GPIO_DIR_OUTPUT))
+        {
+            if (config->initLevel == MCAL_GPIO_LEVEL_HIGH)
+            {
+                WriteSet(portIndex, pinMask);
+            }
+            else
+            {
+                WriteClear(portIndex, pinMask);
+            }
+
+            EALLOW;
+            status = SetDirection(config->pin, MCAL_GPIO_DIR_OUTPUT);
+            EDIS;
+        }
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_SetQualPeriod(
+    Mcal_GpioPinType pin,
+    uint16_t divider)
+{
+    Mcal_GpioStatusType status;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        status = IsDividerValid(divider);
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        status = CheckQualAccess(pin);
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        EALLOW;
+        status = SetQualPeriod(pin, divider);
+        EDIS;
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_SetMux(
+    Mcal_GpioPinType pin,
+    Mcal_GpioMuxType mux)
+{
+    Mcal_GpioStatusType status;
+
+    status = IsPinValid(pin);
+
+    if ((status == MCAL_GPIO_STATUS_OK) &&
+        (mux > MCAL_GPIO_MAX_MUX))
+    {
+        status = MCAL_GPIO_STATUS_INV_ARG;
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        status = CheckPinAccess(pin);
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        EALLOW;
+        status = SetPinMux(pin, mux);
+        EDIS;
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_Lock(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else
+        {
+            EALLOW;
+            *lockReg |= pinMask;
+            EDIS;
+        }
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_Unlock(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else
+        {
+            EALLOW;
+            *lockReg &= ~pinMask;
+            EDIS;
+        }
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_CommitLock(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    volatile uint32_t * lockReg;
+    volatile uint32_t * commitReg;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        lockReg = GetLockReg(portIndex);
+        commitReg = GetCommitReg(portIndex);
+
+        if ((lockReg == NULL) || (commitReg == NULL))
+        {
+            status = MCAL_GPIO_STATUS_INV_CFG;
+        }
+        else if ((*commitReg & pinMask) != 0U)
+        {
+            status = MCAL_GPIO_STATUS_COMMITTED;
+        }
+        else
+        {
+            EALLOW;
+            *lockReg |= pinMask;
+            *commitReg |= pinMask;
+            EDIS;
+
+            if (((*lockReg & pinMask) == 0U) ||
+                ((*commitReg & pinMask) == 0U))
+            {
+                status = MCAL_GPIO_STATUS_INV_CFG;
+            }
+        }
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_Write(
+    Mcal_GpioPinType pin,
+    Mcal_GpioLevelType level)
+{
+    Mcal_GpioStatusType status;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        status = IsLevelValid(level);
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+
+        if (level == MCAL_GPIO_LEVEL_HIGH)
+        {
+            WriteSet(portIndex, pinMask);
+        }
+        else
+        {
+            WriteClear(portIndex, pinMask);
+        }
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_Toggle(
+    Mcal_GpioPinType pin)
+{
+    Mcal_GpioStatusType status;
+    uint16_t portIndex;
+    uint32_t pinMask;
+
+    status = IsPinValid(pin);
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        WriteToggle(portIndex, pinMask);
+    }
+
+    return status;
+}
+
+Mcal_GpioStatusType Mcal_Gpio_Read(
+    Mcal_GpioPinType pin,
+    Mcal_GpioLevelType * levelPtr)
+{
+    Mcal_GpioStatusType status;
+    uint16_t portIndex;
+    uint32_t pinMask;
+    uint32_t portValue;
+
+    status = IsPinValid(pin);
+
+    if ((status == MCAL_GPIO_STATUS_OK) &&
+        (levelPtr == NULL))
+    {
+        status = MCAL_GPIO_STATUS_INV_ARG;
+    }
+
+    if (status == MCAL_GPIO_STATUS_OK)
+    {
+        portIndex = GetPortIndex(pin);
+        pinMask = GetPinMask(pin);
+        portValue = ReadPort(portIndex);
+
+        if ((portValue & pinMask) != 0U)
+        {
+            *levelPtr = MCAL_GPIO_LEVEL_HIGH;
+        }
+        else
+        {
+            *levelPtr = MCAL_GPIO_LEVEL_LOW;
+        }
+    }
+
+    return status;
+}
+
+/*==============================================================================
+ * Private Function Definitions
+ *============================================================================*/
+
 static Mcal_GpioStatusType IsPinValid(
     Mcal_GpioPinType pin)
 {
@@ -199,9 +527,6 @@ static Mcal_GpioStatusType IsPinValid(
     return status;
 }
 
-/**
- * @brief Checks whether a GPIO level value is valid.
- */
 static Mcal_GpioStatusType IsLevelValid(
     Mcal_GpioLevelType level)
 {
@@ -220,9 +545,6 @@ static Mcal_GpioStatusType IsLevelValid(
     return status;
 }
 
-/**
- * @brief Checks whether a qualification divider is supported.
- */
 static Mcal_GpioStatusType IsDividerValid(
     uint16_t divider)
 {
@@ -242,9 +564,6 @@ static Mcal_GpioStatusType IsDividerValid(
     return status;
 }
 
-/**
- * @brief Checks whether one pin configuration can be modified.
- */
 static Mcal_GpioStatusType CheckPinAccess(
     Mcal_GpioPinType pin)
 {
@@ -284,9 +603,6 @@ static Mcal_GpioStatusType CheckPinAccess(
     return status;
 }
 
-/**
- * @brief Checks access to one shared qualification-period group.
- */
 static Mcal_GpioStatusType CheckQualAccess(
     Mcal_GpioPinType pin)
 {
@@ -331,9 +647,6 @@ static Mcal_GpioStatusType CheckQualAccess(
     return status;
 }
 
-/**
- * @brief Validates a complete GPIO pin configuration.
- */
 static Mcal_GpioStatusType ValidateConfig(
     const Mcal_GpioConfigType * config)
 {
@@ -418,27 +731,18 @@ static Mcal_GpioStatusType ValidateConfig(
     return status;
 }
 
-/**
- * @brief Calculates the GPIO port index.
- */
 static uint16_t GetPortIndex(
     Mcal_GpioPinType pin)
 {
     return (uint16_t)(pin / MCAL_GPIO_PORT_SIZE);
 }
 
-/**
- * @brief Calculates the bit index inside a GPIO port.
- */
 static uint16_t GetBitIndex(
     Mcal_GpioPinType pin)
 {
     return (uint16_t)(pin % MCAL_GPIO_PORT_SIZE);
 }
 
-/**
- * @brief Calculates the 32-bit mask for a GPIO pin.
- */
 static uint32_t GetPinMask(
     Mcal_GpioPinType pin)
 {
@@ -451,9 +755,6 @@ static uint32_t GetPinMask(
     return pinMask;
 }
 
-/**
- * @brief Resolves the direction register of a GPIO port.
- */
 static volatile uint32_t * GetDirReg(
     uint16_t portIndex)
 {
@@ -488,9 +789,6 @@ static volatile uint32_t * GetDirReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves the pull-up disable register of a GPIO port.
- */
 static volatile uint32_t * GetPudReg(
     uint16_t portIndex)
 {
@@ -525,9 +823,6 @@ static volatile uint32_t * GetPudReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves the input inversion register of a GPIO port.
- */
 static volatile uint32_t * GetInvReg(
     uint16_t portIndex)
 {
@@ -562,9 +857,6 @@ static volatile uint32_t * GetInvReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves the open-drain register of a GPIO port.
- */
 static volatile uint32_t * GetOdrReg(
     uint16_t portIndex)
 {
@@ -599,9 +891,6 @@ static volatile uint32_t * GetOdrReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves the qualification control register of a GPIO port.
- */
 static volatile uint32_t * GetCtrlReg(
     uint16_t portIndex)
 {
@@ -623,9 +912,6 @@ static volatile uint32_t * GetCtrlReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves one 2-bit qualification register.
- */
 static volatile uint32_t * GetQselReg(
     uint16_t portIndex,
     uint16_t regIndex)
@@ -669,9 +955,6 @@ static volatile uint32_t * GetQselReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves one 2-bit peripheral mux register.
- */
 static volatile uint32_t * GetMuxReg(
     uint16_t portIndex,
     uint16_t regIndex)
@@ -715,9 +998,6 @@ static volatile uint32_t * GetMuxReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves one 2-bit group mux register.
- */
 static volatile uint32_t * GetGmuxReg(
     uint16_t portIndex,
     uint16_t regIndex)
@@ -761,9 +1041,6 @@ static volatile uint32_t * GetGmuxReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves one 4-bit controller select register.
- */
 static volatile uint32_t * GetCselReg(
     uint16_t portIndex,
     uint16_t regIndex)
@@ -839,9 +1116,6 @@ static volatile uint32_t * GetCselReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves the configuration lock register of one GPIO port.
- */
 static volatile uint32_t * GetLockReg(
     uint16_t portIndex)
 {
@@ -876,9 +1150,6 @@ static volatile uint32_t * GetLockReg(
     return regPtr;
 }
 
-/**
- * @brief Resolves the lock commit register of one GPIO port.
- */
 static volatile uint32_t * GetCommitReg(
     uint16_t portIndex)
 {
@@ -913,9 +1184,6 @@ static volatile uint32_t * GetCommitReg(
     return regPtr;
 }
 
-/**
- * @brief Updates one 1-bit field in a control register.
- */
 static void WriteBit(
     volatile uint32_t * regPtr,
     uint16_t bitIndex,
@@ -939,9 +1207,6 @@ static void WriteBit(
     *regPtr = regValue;
 }
 
-/**
- * @brief Updates one 2-bit field in a control register.
- */
 static void Write2Bit(
     volatile uint32_t * regPtr,
     uint16_t fieldIndex,
@@ -962,9 +1227,6 @@ static void Write2Bit(
     *regPtr = regValue;
 }
 
-/**
- * @brief Updates one 4-bit field in a control register.
- */
 static void Write4Bit(
     volatile uint32_t * regPtr,
     uint16_t fieldIndex,
@@ -985,9 +1247,6 @@ static void Write4Bit(
     *regPtr = regValue;
 }
 
-/**
- * @brief Updates one 8-bit field in a control register.
- */
 static void Write8Bit(
     volatile uint32_t * regPtr,
     uint16_t fieldIndex,
@@ -1008,9 +1267,6 @@ static void Write8Bit(
     *regPtr = regValue;
 }
 
-/**
- * @brief Configures the direction bit of one GPIO pin.
- */
 static Mcal_GpioStatusType SetDirection(
     Mcal_GpioPinType pin,
     Mcal_GpioDirType dir)
@@ -1039,9 +1295,6 @@ static Mcal_GpioStatusType SetDirection(
     return status;
 }
 
-/**
- * @brief Configures the internal pull-up of one GPIO pin.
- */
 static Mcal_GpioStatusType SetPull(
     Mcal_GpioPinType pin,
     Mcal_GpioPullType pull)
@@ -1070,9 +1323,6 @@ static Mcal_GpioStatusType SetPull(
     return status;
 }
 
-/**
- * @brief Configures native open-drain mode of one GPIO pin.
- */
 static Mcal_GpioStatusType SetOpenDrain(
     Mcal_GpioPinType pin,
     Mcal_GpioOdrType odr)
@@ -1101,9 +1351,6 @@ static Mcal_GpioStatusType SetOpenDrain(
     return status;
 }
 
-/**
- * @brief Configures input inversion of one GPIO pin.
- */
 static Mcal_GpioStatusType SetInvert(
     Mcal_GpioPinType pin,
     Mcal_GpioInvType inv)
@@ -1132,9 +1379,6 @@ static Mcal_GpioStatusType SetInvert(
     return status;
 }
 
-/**
- * @brief Configures input qualification mode of one GPIO pin.
- */
 static Mcal_GpioStatusType SetQual(
     Mcal_GpioPinType pin,
     Mcal_GpioQualType qual)
@@ -1165,9 +1409,6 @@ static Mcal_GpioStatusType SetQual(
     return status;
 }
 
-/**
- * @brief Configures the GPIO data-register controller selection.
- */
 static Mcal_GpioStatusType SetOwner(
     Mcal_GpioPinType pin,
     Mcal_GpioOwnerType owner)
@@ -1198,9 +1439,6 @@ static Mcal_GpioStatusType SetOwner(
     return status;
 }
 
-/**
- * @brief Selects the digital function in the MUX and GMUX registers.
- */
 static Mcal_GpioStatusType SetPinMux(
     Mcal_GpioPinType pin,
     Mcal_GpioMuxType mux)
@@ -1241,9 +1479,6 @@ static Mcal_GpioStatusType SetPinMux(
     return status;
 }
 
-/**
- * @brief Configures one shared eight-pin qualification period.
- */
 static Mcal_GpioStatusType SetQualPeriod(
     Mcal_GpioPinType pin,
     uint16_t divider)
@@ -1274,9 +1509,6 @@ static Mcal_GpioStatusType SetQualPeriod(
     return status;
 }
 
-/**
- * @brief Sets selected GPIO bits in a port.
- */
 static void WriteSet(
     uint16_t portIndex,
     uint32_t pinMask)
@@ -1306,9 +1538,6 @@ static void WriteSet(
     }
 }
 
-/**
- * @brief Clears selected GPIO bits in a port.
- */
 static void WriteClear(
     uint16_t portIndex,
     uint32_t pinMask)
@@ -1338,9 +1567,6 @@ static void WriteClear(
     }
 }
 
-/**
- * @brief Toggles selected GPIO bits in a port.
- */
 static void WriteToggle(
     uint16_t portIndex,
     uint32_t pinMask)
@@ -1370,9 +1596,6 @@ static void WriteToggle(
     }
 }
 
-/**
- * @brief Reads the complete GPIO data register of a port.
- */
 static uint32_t ReadPort(
     uint16_t portIndex)
 {
@@ -1405,374 +1628,4 @@ static uint32_t ReadPort(
     }
 
     return portValue;
-}
-
-/*****************************************************************************/
-/* Public Function Definitions                                               */
-/*****************************************************************************/
-
-/**
- * @brief Initializes one pin for GPIO operation.
- */
-Mcal_GpioStatusType Mcal_Gpio_InitPin(
-    const Mcal_GpioConfigType * config)
-{
-    Mcal_GpioStatusType status;
-    uint16_t portIndex;
-    uint32_t pinMask;
-
-    status = ValidateConfig(config);
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        status = CheckPinAccess(config->pin);
-    }
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        portIndex = GetPortIndex(config->pin);
-        pinMask = GetPinMask(config->pin);
-
-        EALLOW;
-
-        status = SetDirection(config->pin, MCAL_GPIO_DIR_INPUT);
-
-        if (status == MCAL_GPIO_STATUS_OK)
-        {
-            status = SetPinMux(config->pin, (Mcal_GpioMuxType)0U);
-        }
-
-        if (status == MCAL_GPIO_STATUS_OK)
-        {
-            status = SetPull(config->pin, config->pull);
-        }
-
-        if (status == MCAL_GPIO_STATUS_OK)
-        {
-            status = SetOpenDrain(config->pin, config->odr);
-        }
-
-        if (status == MCAL_GPIO_STATUS_OK)
-        {
-            status = SetInvert(config->pin, config->inv);
-        }
-
-        if (status == MCAL_GPIO_STATUS_OK)
-        {
-            status = SetQual(config->pin, config->qual);
-        }
-
-        if (status == MCAL_GPIO_STATUS_OK)
-        {
-            status = SetOwner(config->pin, config->owner);
-        }
-
-        EDIS;
-
-        if ((status == MCAL_GPIO_STATUS_OK) &&
-            (config->dir == MCAL_GPIO_DIR_OUTPUT))
-        {
-            if (config->initLevel == MCAL_GPIO_LEVEL_HIGH)
-            {
-                WriteSet(portIndex, pinMask);
-            }
-            else
-            {
-                WriteClear(portIndex, pinMask);
-            }
-
-            EALLOW;
-            status = SetDirection(config->pin, MCAL_GPIO_DIR_OUTPUT);
-            EDIS;
-        }
-    }
-
-    return status;
-}
-
-/**
- * @brief Sets the qualification sampling period for one eight-pin group.
- */
-Mcal_GpioStatusType Mcal_Gpio_SetQualPeriod(
-    Mcal_GpioPinType pin,
-    uint16_t divider)
-{
-    Mcal_GpioStatusType status;
-
-    status = IsPinValid(pin);
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        status = IsDividerValid(divider);
-    }
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        status = CheckQualAccess(pin);
-    }
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        EALLOW;
-        status = SetQualPeriod(pin, divider);
-        EDIS;
-    }
-
-    return status;
-}
-
-/**
- * @brief Selects the digital alternate function of one GPIO pin.
- */
-Mcal_GpioStatusType Mcal_Gpio_SetMux(
-    Mcal_GpioPinType pin,
-    Mcal_GpioMuxType mux)
-{
-    Mcal_GpioStatusType status;
-
-    status = IsPinValid(pin);
-
-    if ((status == MCAL_GPIO_STATUS_OK) &&
-        (mux > MCAL_GPIO_MAX_MUX))
-    {
-        status = MCAL_GPIO_STATUS_INV_ARG;
-    }
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        status = CheckPinAccess(pin);
-    }
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        EALLOW;
-        status = SetPinMux(pin, mux);
-        EDIS;
-    }
-
-    return status;
-}
-
-/**
- * @brief Locks the configuration of one GPIO pin.
- */
-Mcal_GpioStatusType Mcal_Gpio_Lock(
-    Mcal_GpioPinType pin)
-{
-    Mcal_GpioStatusType status;
-    volatile uint32_t * lockReg;
-    volatile uint32_t * commitReg;
-    uint16_t portIndex;
-    uint32_t pinMask;
-
-    status = IsPinValid(pin);
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        portIndex = GetPortIndex(pin);
-        pinMask = GetPinMask(pin);
-        lockReg = GetLockReg(portIndex);
-        commitReg = GetCommitReg(portIndex);
-
-        if ((lockReg == NULL) || (commitReg == NULL))
-        {
-            status = MCAL_GPIO_STATUS_INV_CFG;
-        }
-        else if ((*commitReg & pinMask) != 0U)
-        {
-            status = MCAL_GPIO_STATUS_COMMITTED;
-        }
-        else
-        {
-            EALLOW;
-            *lockReg |= pinMask;
-            EDIS;
-        }
-    }
-
-    return status;
-}
-
-/**
- * @brief Unlocks the configuration of one GPIO pin.
- */
-Mcal_GpioStatusType Mcal_Gpio_Unlock(
-    Mcal_GpioPinType pin)
-{
-    Mcal_GpioStatusType status;
-    volatile uint32_t * lockReg;
-    volatile uint32_t * commitReg;
-    uint16_t portIndex;
-    uint32_t pinMask;
-
-    status = IsPinValid(pin);
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        portIndex = GetPortIndex(pin);
-        pinMask = GetPinMask(pin);
-        lockReg = GetLockReg(portIndex);
-        commitReg = GetCommitReg(portIndex);
-
-        if ((lockReg == NULL) || (commitReg == NULL))
-        {
-            status = MCAL_GPIO_STATUS_INV_CFG;
-        }
-        else if ((*commitReg & pinMask) != 0U)
-        {
-            status = MCAL_GPIO_STATUS_COMMITTED;
-        }
-        else
-        {
-            EALLOW;
-            *lockReg &= ~pinMask;
-            EDIS;
-        }
-    }
-
-    return status;
-}
-
-/**
- * @brief Locks and commits the configuration of one GPIO pin.
- */
-Mcal_GpioStatusType Mcal_Gpio_CommitLock(
-    Mcal_GpioPinType pin)
-{
-    Mcal_GpioStatusType status;
-    volatile uint32_t * lockReg;
-    volatile uint32_t * commitReg;
-    uint16_t portIndex;
-    uint32_t pinMask;
-
-    status = IsPinValid(pin);
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        portIndex = GetPortIndex(pin);
-        pinMask = GetPinMask(pin);
-        lockReg = GetLockReg(portIndex);
-        commitReg = GetCommitReg(portIndex);
-
-        if ((lockReg == NULL) || (commitReg == NULL))
-        {
-            status = MCAL_GPIO_STATUS_INV_CFG;
-        }
-        else if ((*commitReg & pinMask) != 0U)
-        {
-            status = MCAL_GPIO_STATUS_COMMITTED;
-        }
-        else
-        {
-            EALLOW;
-            *lockReg |= pinMask;
-            *commitReg |= pinMask;
-            EDIS;
-
-            if (((*lockReg & pinMask) == 0U) ||
-                ((*commitReg & pinMask) == 0U))
-            {
-                status = MCAL_GPIO_STATUS_INV_CFG;
-            }
-        }
-    }
-
-    return status;
-}
-
-/**
- * @brief Writes a logical level to a GPIO pin.
- */
-Mcal_GpioStatusType Mcal_Gpio_Write(
-    Mcal_GpioPinType pin,
-    Mcal_GpioLevelType level)
-{
-    Mcal_GpioStatusType status;
-    uint16_t portIndex;
-    uint32_t pinMask;
-
-    status = IsPinValid(pin);
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        status = IsLevelValid(level);
-    }
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        portIndex = GetPortIndex(pin);
-        pinMask = GetPinMask(pin);
-
-        if (level == MCAL_GPIO_LEVEL_HIGH)
-        {
-            WriteSet(portIndex, pinMask);
-        }
-        else
-        {
-            WriteClear(portIndex, pinMask);
-        }
-    }
-
-    return status;
-}
-
-/**
- * @brief Toggles a GPIO pin using the hardware toggle register.
- */
-Mcal_GpioStatusType Mcal_Gpio_Toggle(
-    Mcal_GpioPinType pin)
-{
-    Mcal_GpioStatusType status;
-    uint16_t portIndex;
-    uint32_t pinMask;
-
-    status = IsPinValid(pin);
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        portIndex = GetPortIndex(pin);
-        pinMask = GetPinMask(pin);
-        WriteToggle(portIndex, pinMask);
-    }
-
-    return status;
-}
-
-/**
- * @brief Reads the logical level of a GPIO pin.
- */
-Mcal_GpioStatusType Mcal_Gpio_Read(
-    Mcal_GpioPinType pin,
-    Mcal_GpioLevelType * levelPtr)
-{
-    Mcal_GpioStatusType status;
-    uint16_t portIndex;
-    uint32_t pinMask;
-    uint32_t portValue;
-
-    status = IsPinValid(pin);
-
-    if ((status == MCAL_GPIO_STATUS_OK) &&
-        (levelPtr == NULL))
-    {
-        status = MCAL_GPIO_STATUS_INV_ARG;
-    }
-
-    if (status == MCAL_GPIO_STATUS_OK)
-    {
-        portIndex = GetPortIndex(pin);
-        pinMask = GetPinMask(pin);
-        portValue = ReadPort(portIndex);
-
-        if ((portValue & pinMask) != 0U)
-        {
-            *levelPtr = MCAL_GPIO_LEVEL_HIGH;
-        }
-        else
-        {
-            *levelPtr = MCAL_GPIO_LEVEL_LOW;
-        }
-    }
-
-    return status;
 }
