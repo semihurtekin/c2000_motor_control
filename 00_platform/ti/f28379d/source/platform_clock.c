@@ -93,6 +93,9 @@ Platform_ClockStatusType Platform_ClockInit(void)
     ClkCfgRegs.SYSCLKDIVSEL.bit.PLLSYSCLKDIV =
         PLATFORM_CLOCK_DIV_FINAL;
 
+    /* Divide the PLLCLK to 2 for EPWM clock (100 MHz)*/
+    ClkCfgRegs.PERCLKDIVSEL.bit.EPWMCLKDIV = 1U;
+
     status = PLATFORM_CLOCK_STATUS_OK;
 
     EDIS;

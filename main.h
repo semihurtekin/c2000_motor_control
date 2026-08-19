@@ -17,7 +17,7 @@ extern "C" {
 /**
  * @brief CPU Timer0 interrupt service routine.
  */
-__interrupt void Timer0Isr(void);
+__interrupt void TimerISR(void);
 
 #ifdef __cplusplus
 }
