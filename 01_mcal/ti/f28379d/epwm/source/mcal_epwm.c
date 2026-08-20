@@ -32,6 +32,10 @@
 #define MCAL_EPWM_DB_FULL_CYCLE         (0U)
 #define MCAL_EPWM_DB_MAX_DELAY          (0x3FFFU)
 
+#define MCAL_EPWM_TZ_FORCE_LOW           (2U)
+#define MCAL_EPWM_TZ_INACTIVE            (0U)
+#define MCAL_EPWM_TZ_ACTIVE              (1U)
+
 /*==============================================================================
  * Private Function Declarations
  *============================================================================*/
@@ -199,6 +203,125 @@ Mcal_EpwmStatusType Mcal_Epwm_InitDeadBand(
             config->risingDelay;
         epwmRegs->DBFED.bit.DBFED =
             config->fallingDelay;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+
+Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
+    Mcal_EpwmIdType module)
+{
+    Mcal_EpwmStatusType status;
+    volatile struct EPWM_REGS * epwmRegs;
+
+    status = IsModuleValid(module);
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        epwmRegs = GetEpwmRegs(module);
+
+        EALLOW;
+
+        /*
+         * Any basic Trip Zone event forces both complementary outputs LOW.
+         * External one-shot sources are intentionally not selected here.
+         */
+        epwmRegs->TZCTL.bit.TZA = MCAL_EPWM_TZ_FORCE_LOW;
+        epwmRegs->TZCTL.bit.TZB = MCAL_EPWM_TZ_FORCE_LOW;
+
+        epwmRegs->TZCLR.bit.OST = 1U;
+
+        EDIS;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Mcal_EpwmStatusType Mcal_Epwm_ForceTrip(
+    Mcal_EpwmIdType module)
+{
+    Mcal_EpwmStatusType status;
+    volatile struct EPWM_REGS * epwmRegs;
+
+    status = IsModuleValid(module);
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        epwmRegs = GetEpwmRegs(module);
+
+        EALLOW;
+        epwmRegs->TZFRC.bit.OST = 1U;
+        EDIS;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Mcal_EpwmStatusType Mcal_Epwm_ClearTrip(
+    Mcal_EpwmIdType module)
+{
+    Mcal_EpwmStatusType status;
+    volatile struct EPWM_REGS * epwmRegs;
+
+    status = IsModuleValid(module);
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        epwmRegs = GetEpwmRegs(module);
+
+        EALLOW;
+        epwmRegs->TZCLR.bit.OST = 1U;
+        EDIS;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Mcal_EpwmStatusType Mcal_Epwm_IsTripActive(
+    Mcal_EpwmIdType module,
+    uint16_t * active)
+{
+    Mcal_EpwmStatusType status;
+    volatile struct EPWM_REGS * epwmRegs;
+
+    status = IsModuleValid(module);
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        if(active != NULL)
+        {
+            epwmRegs = GetEpwmRegs(module);
+
+            if(epwmRegs->TZFLG.bit.OST != 0U)
+            {
+                *active = MCAL_EPWM_TZ_ACTIVE;
+            }
+            else
+            {
+                *active = MCAL_EPWM_TZ_INACTIVE;
+            }
+        }
+        else
+        {
+            status = MCAL_EPWM_STATUS_INV_ARG;
+        }
     }
     else
     {

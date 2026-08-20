@@ -156,6 +156,56 @@ Mcal_EpwmStatusType Mcal_Epwm_SetCompareA(
 Mcal_EpwmStatusType Mcal_Epwm_InitDeadBand(
     const Mcal_EpwmDeadBandConfigType * config);
 
+
+/**
+ * @brief Initializes the one-shot Trip Zone safety policy.
+ *
+ * A one-shot trip forces both ePWMxA and ePWMxB LOW. No external trip source
+ * is selected by this function. The one-shot latch is cleared during
+ * initialization.
+ *
+ * @param module Selected ePWM module.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
+    Mcal_EpwmIdType module);
+
+/**
+ * @brief Forces a one-shot Trip Zone event by software.
+ *
+ * @param module Selected ePWM module.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_ForceTrip(
+    Mcal_EpwmIdType module);
+
+/**
+ * @brief Clears the latched one-shot Trip Zone event.
+ *
+ * Safety and recovery conditions shall be evaluated by an upper software
+ * layer before this API is called.
+ *
+ * @param module Selected ePWM module.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_ClearTrip(
+    Mcal_EpwmIdType module);
+
+/**
+ * @brief Reads the latched one-shot Trip Zone status.
+ *
+ * @param module Selected ePWM module.
+ * @param active Receives 1U when an OST is latched, otherwise 0U.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_IsTripActive(
+    Mcal_EpwmIdType module,
+    uint16_t * active);
+
 #ifdef __cplusplus
 }
 #endif
