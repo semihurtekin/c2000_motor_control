@@ -10,18 +10,17 @@
 #include "mcal_gpio.h"
 #include "mcal_epwm.h"
 #include "mcal_timer.h"
+#include "mcal_xbar.h"
 
-static uint16_t TripState;
-uint16_t timerElapsed;
+
+
+
 int main(void)
 {
     Mcal_GpioConfigType gpioConfig;
     Mcal_EpwmTbConfigType epwmTbConfig;
     Mcal_EpwmCompareConfigType epwmCompConfig;
     Mcal_EpwmDeadBandConfigType epwmDbConfig;
-    Mcal_TimerConfigType timerConfig;
-
-    TripState = 0U;
 
     Platform_ClockInit();
 
@@ -49,6 +48,15 @@ int main(void)
     (void)Mcal_Gpio_InitPin(&gpioConfig);
     (void)Mcal_Gpio_SetMux(1U, 0x1U);
 
+    gpioConfig.pin = 2U;
+    gpioConfig.dir = MCAL_GPIO_DIR_INPUT;
+    gpioConfig.pull = MCAL_GPIO_PULL_ENABLE;
+    gpioConfig.qual = MCAL_GPIO_QUAL_ASYNC;
+
+    (void)Mcal_Gpio_InitPin(&gpioConfig);
+    (void)Mcal_Gpio_SetMux(2U, 0x0U);
+    (void)Mcal_Xbar_SetInput(MCAL_XBAR_INPUT_1, 2U);
+
     epwmTbConfig.module = MCAL_EPWM_1;
     epwmTbConfig.period = 5000U;
     epwmTbConfig.mode = MCAL_EPWM_COUNT_UP_DOWN;
@@ -68,18 +76,19 @@ int main(void)
 
     (void)Mcal_Epwm_InitDeadBand(&epwmDbConfig);
     (void)Mcal_Epwm_InitTrip(MCAL_EPWM_1);
+    (void)Mcal_Epwm_EnableOneShotTrip(MCAL_EPWM_1, MCAL_EPWM_TRIP_SOURCE_TZ1);
 
-    /*
-     * Example polling timer.
-     * Adjust these fields to your existing Mcal_TimerConfigType definition.
-     * Goal: generate a slow event that is easy to see on the logic analyzer.
-     */
-    timerConfig.timer = MCAL_TIMER_0;
-    timerConfig.period = 6102U;
-    timerConfig.prescaler = 65535U;
+    // /*
+    //  * Example polling timer.
+    //  * Adjust these fields to your existing Mcal_TimerConfigType definition.
+    //  * Goal: generate a slow event that is easy to see on the logic analyzer.
+    //  */
+    // timerConfig.timer = MCAL_TIMER_0;
+    // timerConfig.period = 6102U;
+    // timerConfig.prescaler = 65535U;
 
-    (void)Mcal_Timer_Init(&timerConfig);
-    (void)Mcal_Timer_Start(MCAL_TIMER_0);
+    // (void)Mcal_Timer_Init(&timerConfig);
+    // (void)Mcal_Timer_Start(MCAL_TIMER_0);
 
     EALLOW;
     CpuSysRegs.PCLKCR0.bit.TBCLKSYNC = 1U;
@@ -88,26 +97,5 @@ int main(void)
     for(;;)
     {
         
-        Mcal_Timer_IsElapsed(MCAL_TIMER_0, &timerElapsed);
-        
-        if(timerElapsed != 0U)
-        {
-            (void)Mcal_Timer_ClearFlag(MCAL_TIMER_0);
-            timerElapsed = 0;
-            if(TripState == 0U)
-            {
-                (void)Mcal_Epwm_ForceTrip(MCAL_EPWM_1);
-                TripState = 1U;
-            }
-            else
-            {
-                (void)Mcal_Epwm_ClearTrip(MCAL_EPWM_1);
-                TripState = 0U;
-            }
-        }
-        else
-        {
-            /* Do nothing. */
-        }
     }
 }

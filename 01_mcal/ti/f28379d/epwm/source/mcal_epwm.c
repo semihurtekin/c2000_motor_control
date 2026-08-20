@@ -68,6 +68,9 @@ static Mcal_EpwmStatusType IsCompareValid(
     Mcal_EpwmIdType module,
     uint16_t compare);
 
+static Mcal_EpwmStatusType IsTripSourceValid(
+    Mcal_EpwmTripSourceType source);
+
 /*==============================================================================
  * Public Function Definitions
  *============================================================================*/
@@ -228,15 +231,70 @@ Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
         EALLOW;
 
         /*
-         * Any basic Trip Zone event forces both complementary outputs LOW.
-         * External one-shot sources are intentionally not selected here.
+         * Start the basic Trip Zone source selection from a known state.
+         * External trip sources are enabled explicitly by a separate API.
+         */
+        epwmRegs->TZSEL.all = 0U;
+
+        /*
+         * Any enabled basic Trip Zone event forces both complementary
+         * outputs LOW.
          */
         epwmRegs->TZCTL.bit.TZA = MCAL_EPWM_TZ_FORCE_LOW;
         epwmRegs->TZCTL.bit.TZB = MCAL_EPWM_TZ_FORCE_LOW;
 
+        /*
+         * Start from a known, non-tripped state.
+         */
         epwmRegs->TZCLR.bit.OST = 1U;
 
         EDIS;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+
+Mcal_EpwmStatusType Mcal_Epwm_EnableOneShotTrip(
+    Mcal_EpwmIdType module,
+    Mcal_EpwmTripSourceType source)
+{
+    Mcal_EpwmStatusType status;
+    volatile struct EPWM_REGS * epwmRegs;
+
+    status = IsModuleValid(module);
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        status = IsTripSourceValid(source);
+
+        if(status == MCAL_EPWM_STATUS_OK)
+        {
+            epwmRegs = GetEpwmRegs(module);
+
+            EALLOW;
+
+            switch(source)
+            {
+                case MCAL_EPWM_TRIP_SOURCE_TZ1:
+                    epwmRegs->TZSEL.bit.OSHT1 = 1U;
+                    break;
+
+                default:
+                    /* Do nothing. */
+                    break;
+            }
+
+            EDIS;
+        }
+        else
+        {
+            /* Do nothing. */
+        }
     }
     else
     {
@@ -571,6 +629,24 @@ static Mcal_EpwmStatusType IsHsClkDivValid(
 
     if(((uint16_t)hsClkDiv >= (uint16_t)MCAL_EPWM_HSCLKDIV_1) &&
        ((uint16_t)hsClkDiv <= (uint16_t)MCAL_EPWM_HSCLKDIV_14))
+    {
+        status = MCAL_EPWM_STATUS_OK;
+    }
+    else
+    {
+        status = MCAL_EPWM_STATUS_INV_ARG;
+    }
+
+    return status;
+}
+
+
+static Mcal_EpwmStatusType IsTripSourceValid(
+    Mcal_EpwmTripSourceType source)
+{
+    Mcal_EpwmStatusType status;
+
+    if(source == MCAL_EPWM_TRIP_SOURCE_TZ1)
     {
         status = MCAL_EPWM_STATUS_OK;
     }

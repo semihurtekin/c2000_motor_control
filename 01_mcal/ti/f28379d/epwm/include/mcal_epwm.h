@@ -101,6 +101,12 @@ typedef struct
     uint16_t fallingDelay;
 } Mcal_EpwmDeadBandConfigType;
 
+
+typedef enum
+{
+    MCAL_EPWM_TRIP_SOURCE_TZ1 = 1U
+} Mcal_EpwmTripSourceType;
+
 /*==============================================================================
  * Public Function Declarations
  *============================================================================*/
@@ -170,6 +176,22 @@ Mcal_EpwmStatusType Mcal_Epwm_InitDeadBand(
  */
 Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
     Mcal_EpwmIdType module);
+
+
+/**
+ * @brief Enables an external source as a one-shot Trip Zone source.
+ *
+ * This version supports TZ1. The routing that drives TZ1 is configured
+ * separately by the Input X-BAR MCAL driver.
+ *
+ * @param module Selected ePWM module.
+ * @param source One-shot trip source.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_EnableOneShotTrip(
+    Mcal_EpwmIdType module,
+    Mcal_EpwmTripSourceType source);
 
 /**
  * @brief Forces a one-shot Trip Zone event by software.
