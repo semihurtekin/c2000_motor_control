@@ -107,6 +107,36 @@ typedef enum
     MCAL_EPWM_TRIP_SOURCE_TZ1 = 1U
 } Mcal_EpwmTripSourceType;
 
+
+typedef enum
+{
+    MCAL_EPWM_ADC_SOCA = 0U,
+    MCAL_EPWM_ADC_SOCB = 1U
+} Mcal_EpwmAdcSocType;
+
+/**
+ * @brief ePWM timing event used to generate an ADC SOC pulse.
+ *
+ * Compare-based values in this version use the CMPA/CMPB compare family.
+ * The current public API exposes CMPA up/down events only.
+ */
+typedef enum
+{
+    MCAL_EPWM_ADC_TRIG_ZERO = 1U,
+    MCAL_EPWM_ADC_TRIG_PERIOD = 2U,
+    MCAL_EPWM_ADC_TRIG_ZERO_PERIOD = 3U,
+    MCAL_EPWM_ADC_TRIG_CMPA_UP = 4U,
+    MCAL_EPWM_ADC_TRIG_CMPA_DOWN = 5U
+} Mcal_EpwmAdcTrigSourceType;
+
+typedef struct
+{
+    Mcal_EpwmIdType module;
+    Mcal_EpwmAdcSocType soc;
+    Mcal_EpwmAdcTrigSourceType source;
+    uint16_t eventPrescale;
+} Mcal_EpwmAdcTrigConfigType;
+
 /*==============================================================================
  * Public Function Declarations
  *============================================================================*/
@@ -227,6 +257,49 @@ Mcal_EpwmStatusType Mcal_Epwm_ClearTrip(
 Mcal_EpwmStatusType Mcal_Epwm_IsTripActive(
     Mcal_EpwmIdType module,
     uint16_t * active);
+
+
+/**
+ * @brief Initializes an ePWM ADC start-of-conversion trigger.
+ *
+ * The selected SOCA or SOCB trigger is configured and enabled. The event
+ * prescaler supports one trigger every 1 through 15 selected ePWM events.
+ *
+ * This initialization API is intended to be called while the ePWM time-base
+ * clock is stopped.
+ *
+ * @param config ADC trigger configuration.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_InitAdcTrigger(
+    const Mcal_EpwmAdcTrigConfigType * config);
+
+/**
+ * @brief Reads the selected ePWM ADC trigger event flag.
+ *
+ * @param module Selected ePWM module.
+ * @param soc Selected SOCA or SOCB trigger.
+ * @param flagSet Receives 1U when the event flag is set, otherwise 0U.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_IsAdcTrigFlagSet(
+    Mcal_EpwmIdType module,
+    Mcal_EpwmAdcSocType soc,
+    uint16_t * flagSet);
+
+/**
+ * @brief Clears the selected ePWM ADC trigger event flag.
+ *
+ * @param module Selected ePWM module.
+ * @param soc Selected SOCA or SOCB trigger.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_ClearAdcTrigFlag(
+    Mcal_EpwmIdType module,
+    Mcal_EpwmAdcSocType soc);
 
 #ifdef __cplusplus
 }
