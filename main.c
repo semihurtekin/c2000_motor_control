@@ -1,35 +1,48 @@
 /**
  * @file    main.c
- * @brief   ePWM SOCA event-trigger lab.
- *
- * The lab verifies the following hardware timing path without configuring
- * the ADC yet:
- *
- *     ePWM1 TBCTR = ZERO
- *              |
- *              +--> SOCA event
- *
- * The SOCA event flag is polled and cleared. CPU Timer0 provides an
- * approximately one-second observation window. For a 10 kHz ePWM and
- * eventPrescale = 1U, SocaEventsPerSecond should be close to 10000.
+ * @brief   ePWM-triggered ADCA1 interrupt verification lab.
  */
+
+/*==============================================================================
+ * Includes
+ *============================================================================*/
 
 #include <stdint.h>
 
 #include "F2837xD_device.h"
+
 #include "platform_clock.h"
-#include "mcal_gpio.h"
+#include "platform_interrupt.h"
+
+#include "mcal_adc.h"
+#include "mcal_cpu_int.h"
 #include "mcal_epwm.h"
+#include "mcal_gpio.h"
+#include "mcal_pie.h"
 #include "mcal_timer.h"
+
+/*==============================================================================
+ * Private Macros
+ *============================================================================*/
+
+#define ADCA1_PIE_CHANNEL      (1U)
+#define ADC_DEBUG_GPIO         (2U)
 
 /*==============================================================================
  * Private Variables
  *============================================================================*/
 
-static uint32_t SocaEventCount;
-static uint32_t SocaEventsPerSecond;
-static uint16_t SocaFlag;
-static uint16_t TimerElapsed;
+static uint16_t AdcRaw0;
+static uint16_t AdcRaw1;
+static uint16_t AdcStartupDone;
+static uint16_t AdcIntOverflow;
+static uint32_t AdcIsrCount;
+
+/*==============================================================================
+ * Public Function Declarations
+ *============================================================================*/
+
+__interrupt void ADCB_ISR(void);
 
 /*==============================================================================
  * Public Function Definitions
@@ -37,38 +50,53 @@ static uint16_t TimerElapsed;
 
 int main(void)
 {
-    Mcal_GpioConfigType gpioConfig;
+    Mcal_AdcSocConfigType adcSocConfig;
+    Mcal_AdcIntConfigType adcIntConfig;
     Mcal_EpwmTbConfigType epwmTbConfig;
-    Mcal_EpwmCompareConfigType epwmCmpConfig;
-    Mcal_EpwmDeadBandConfigType epwmDbConfig;
     Mcal_EpwmAdcTrigConfigType adcTrigConfig;
+    Mcal_GpioConfigType gpioConfig;
     Mcal_TimerConfigType timerConfig;
 
-    SocaEventCount = 0UL;
-    SocaEventsPerSecond = 0UL;
-    SocaFlag = 0U;
-    TimerElapsed = 0U;
+    AdcRaw0 = 0U;
+    AdcRaw1 = 0U;
+    AdcStartupDone = 0U;
+    AdcIntOverflow = 0U;
+    AdcIsrCount = 0UL;
 
     (void)Platform_ClockInit();
 
+    /*
+     * Interrupt routing is configured while global CPU interrupts are closed.
+     */
+    (void)Mcal_CpuInt_Init();
+    (void)Mcal_Pie_Init();
+
+    // /*
+    //  * Platform vector-table boundary:
+    //  * ADCA1 -> Adca1Isr.
+    //  *
+    //  * Add Platform_IntSetAdca1() next to the existing
+    //  * Platform_IntSetTimer0() implementation.
+    //  */
+    // (void)Platform_IntSetAdca1(&Adca1Isr);
+    (void)Platform_IntSetAdcb1(&ADCB_ISR);
+
     EALLOW;
 
-    /*
-     * SYSCLK = 200 MHz.
-     * EPWMCLKDIV = /2 gives EPWMCLK = 100 MHz.
-     */
-    ClkCfgRegs.PERCLKDIVSEL.bit.EPWMCLKDIV = 1U;
-
-    /*
-     * Stop all ePWM time-base counters while ePWM1 is configured.
-     */
-    CpuSysRegs.PCLKCR0.bit.TBCLKSYNC = 0U;
+    CpuSysRegs.PCLKCR13.bit.ADC_A = 1U;
+    CpuSysRegs.PCLKCR13.bit.ADC_B = 1U;
     CpuSysRegs.PCLKCR2.bit.EPWM1 = 1U;
+
+    ClkCfgRegs.PERCLKDIVSEL.bit.EPWMCLKDIV = 1U;
+    CpuSysRegs.PCLKCR0.bit.TBCLKSYNC = 0U;
 
     EDIS;
 
-    /* GPIO0 -> EPWM1A. */
-    gpioConfig.pin = 0U;
+    /*
+     * GPIO0 is used only as an ISR timing marker for the logic analyzer.
+     * It remains GPIO, not EPWM1A, in this lab.
+     */
+    gpioConfig.pin = ADC_DEBUG_GPIO;
     gpioConfig.dir = MCAL_GPIO_DIR_OUTPUT;
     gpioConfig.pull = MCAL_GPIO_PULL_DISABLE;
     gpioConfig.odr = MCAL_GPIO_ODR_DISABLE;
@@ -78,22 +106,42 @@ int main(void)
     gpioConfig.initLevel = MCAL_GPIO_LEVEL_LOW;
 
     (void)Mcal_Gpio_InitPin(&gpioConfig);
-    (void)Mcal_Gpio_SetMux(0U, 1U);
 
-    /* GPIO1 -> EPWM1B. */
-    gpioConfig.pin = 1U;
+    (void)Mcal_Adc_Init(MCAL_ADC_A);
+    (void)Mcal_Adc_Init(MCAL_ADC_B);
 
-    (void)Mcal_Gpio_InitPin(&gpioConfig);
-    (void)Mcal_Gpio_SetMux(1U, 1U);
+    adcSocConfig.adc = MCAL_ADC_A;
+    adcSocConfig.soc = MCAL_ADC_SOC_0;
+    adcSocConfig.channel = MCAL_ADC_CHANNEL_0;
+    adcSocConfig.trigger = MCAL_ADC_TRIG_EPWM1_SOCA;
+    adcSocConfig.acquisitionCycles = 20U;
+
+    (void)Mcal_Adc_InitSoc(&adcSocConfig);
+
+    adcSocConfig.adc = MCAL_ADC_B;
+    adcSocConfig.soc = MCAL_ADC_SOC_0;
+    adcSocConfig.channel = MCAL_ADC_CHANNEL_3;
+    
+    (void)Mcal_Adc_InitSoc(&adcSocConfig);
+
+    Mcal_Adc_SetSocPriority(MCAL_ADC_A, 2U);
 
     /*
-     * EPWMCLK = 100 MHz
-     * TBCLK   = 100 MHz
-     * Up-down mode:
+     * EOC0 -> ADCA ADCINT1.
      *
-     * fPWM = TBCLK / (2 * TBPRD)
-     *      = 100 MHz / (2 * 5000)
-     *      = 10 kHz
+     * ADC v0.2 enables continuous interrupt mode internally as the F2837xD
+     * silicon-erratum workaround. Overflow is monitored in the ISR.
+     */
+    adcIntConfig.adc = MCAL_ADC_B;
+    adcIntConfig.adcInt = MCAL_ADC_INT_1;
+    adcIntConfig.sourceEoc = MCAL_ADC_SOC_0;
+
+    (void)Mcal_Adc_EnableInterrupt(&adcIntConfig);
+
+    /*
+     * ePWM1 is used only as the ADC sampling time base in this lab.
+     *
+     * 100 MHz TBCLK / (2 * 5000) = 10 kHz.
      */
     epwmTbConfig.module = MCAL_EPWM_1;
     epwmTbConfig.period = 5000U;
@@ -103,24 +151,6 @@ int main(void)
 
     (void)Mcal_Epwm_InitTimeBase(&epwmTbConfig);
 
-    /* 50 percent duty with the current CAU-clear / CAD-set convention. */
-    epwmCmpConfig.module = MCAL_EPWM_1;
-    epwmCmpConfig.compareA = 2500U;
-
-    (void)Mcal_Epwm_InitCompareA(&epwmCmpConfig);
-
-    /* Approximately 1 us rising/falling dead time at TBCLK = 100 MHz. */
-    epwmDbConfig.module = MCAL_EPWM_1;
-    epwmDbConfig.risingDelay = 100U;
-    epwmDbConfig.fallingDelay = 100U;
-
-    (void)Mcal_Epwm_InitDeadBand(&epwmDbConfig);
-
-    /*
-     * Generate ePWM1 SOCA every time TBCTR reaches ZERO.
-     * In up-down mode ZERO occurs once per complete PWM period.
-     * Therefore a 10 kHz PWM produces a 10 kHz SOCA stream.
-     */
     adcTrigConfig.module = MCAL_EPWM_1;
     adcTrigConfig.soc = MCAL_EPWM_ADC_SOCA;
     adcTrigConfig.source = MCAL_EPWM_ADC_TRIG_ZERO;
@@ -129,58 +159,108 @@ int main(void)
     (void)Mcal_Epwm_InitAdcTrigger(&adcTrigConfig);
 
     /*
-     * CPU Timer0 observation window:
-     *
-     * SYSCLK = 200 MHz
-     * prescaler = 65535 -> divide by 65536
-     * period = 3051 gives approximately 1.00008 s.
+     * Wait >500 us after ADC power-up.
      */
     timerConfig.timer = MCAL_TIMER_0;
-    timerConfig.period = 3051UL;
+    timerConfig.period = 1UL;
     timerConfig.prescaler = 65535U;
 
     (void)Mcal_Timer_Init(&timerConfig);
     (void)Mcal_Timer_Start(MCAL_TIMER_0);
 
+    while(AdcStartupDone == 0U)
+    {
+        (void)Mcal_Timer_IsElapsed(
+            MCAL_TIMER_0,
+            &AdcStartupDone);
+    }
+
+    (void)Mcal_Timer_Stop(MCAL_TIMER_0);
+    (void)Mcal_Timer_ClearFlag(MCAL_TIMER_0);
+
+    /*
+     * ADCA1 -> PIE Group1 / Channel1 -> CPU INT1.
+     */
+    (void)Mcal_Pie_Enable(
+        MCAL_PIE_GROUP_1,
+        2U);
+
+    (void)Mcal_CpuInt_Enable(MCAL_CPU_INT_1);
+
+    /*
+     * Open the ADC sampling source only after the full interrupt path
+     * has been configured.
+     */
     EALLOW;
     CpuSysRegs.PCLKCR0.bit.TBCLKSYNC = 1U;
     EDIS;
 
+    Mcal_CpuInt_EnableGlobal();
+
     for(;;)
     {
-        (void)Mcal_Epwm_IsAdcTrigFlagSet(
-            MCAL_EPWM_1,
-            MCAL_EPWM_ADC_SOCA,
-            &SocaFlag);
-
-        if(SocaFlag != 0U)
-        {
-            (void)Mcal_Epwm_ClearAdcTrigFlag(
-                MCAL_EPWM_1,
-                MCAL_EPWM_ADC_SOCA);
-
-            SocaEventCount++;
-        }
-        else
-        {
-            /* Do nothing. */
-        }
-
-        (void)Mcal_Timer_IsElapsed(
-            MCAL_TIMER_0,
-            &TimerElapsed);
-
-        if(TimerElapsed != 0U)
-        {
-            (void)Mcal_Timer_ClearFlag(MCAL_TIMER_0);
-            (void)Mcal_Timer_Reload(MCAL_TIMER_0);
-
-            SocaEventsPerSecond = SocaEventCount;
-            SocaEventCount = 0UL;
-        }
-        else
-        {
-            /* Do nothing. */
-        }
+        /*
+         * Main loop intentionally idle.
+         * AdcRaw and AdcIsrCount are updated by Adca1Isr().
+         */
     }
+}
+
+/*==============================================================================
+ * Interrupt Service Routines
+ *============================================================================*/
+
+__interrupt void ADCB_ISR(void)
+{
+    (void)Mcal_Gpio_Write(
+        ADC_DEBUG_GPIO,
+        MCAL_GPIO_LEVEL_HIGH);
+        
+    (void)Mcal_Adc_GetResult(
+        MCAL_ADC_A,
+        MCAL_ADC_SOC_0,
+        &AdcRaw0);
+
+    (void)Mcal_Adc_GetResult(
+        MCAL_ADC_B,
+        MCAL_ADC_SOC_0,
+        &AdcRaw1);
+
+    (void)Mcal_Adc_ClearIntFlag(
+        MCAL_ADC_B,
+        MCAL_ADC_INT_1);
+
+    /*
+     * F2837xD ADC interrupt erratum handling:
+     *
+     * An overflow means another ADC interrupt event arrived before software
+     * completed servicing the previous event. After clearing the normal flag,
+     * check overflow immediately. If it is set, clear the normal flag again
+     * and then clear the overflow indication.
+     */
+    (void)Mcal_Adc_IsIntOverflow(
+        MCAL_ADC_B,
+        MCAL_ADC_INT_1,
+        &AdcIntOverflow);
+
+    if(AdcIntOverflow != 0U)
+    {
+        (void)Mcal_Adc_ClearIntFlag(
+            MCAL_ADC_B,
+            MCAL_ADC_INT_1);
+
+        (void)Mcal_Adc_ClearIntOverflow(
+            MCAL_ADC_B,
+            MCAL_ADC_INT_1);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    (void)Mcal_Pie_Ack(MCAL_PIE_GROUP_1);
+
+    (void)Mcal_Gpio_Write(
+        ADC_DEBUG_GPIO,
+        MCAL_GPIO_LEVEL_LOW);
 }

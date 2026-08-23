@@ -26,6 +26,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>F2837xD_Adc.c</name>
+			<type>1</type>
+			<location>C:/ti/C2000Ware_26_01_00_00/device_support/f2837xd/common/source/F2837xD_Adc.c</location>
+		</link>
+		<link>
 			<name>F2837xD_CodeStartBranch.asm</name>
 			<type>1</type>
 			<locationURI>PARENT-5-ORIGINAL_PROJECT_ROOT/common/source/F2837xD_CodeStartBranch.asm</locationURI>
@@ -39,11 +44,6 @@
 			<name>F2837xD_GlobalVariableDefs.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-ORIGINAL_PROJECT_ROOT/headers/source/F2837xD_GlobalVariableDefs.c</locationURI>
-		</link>
-		<link>
-			<name>F2837xD_Gpio.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-ORIGINAL_PROJECT_ROOT/common/source/F2837xD_Gpio.c</locationURI>
 		</link>
 		<link>
 			<name>F2837xD_Ipc.c</name>

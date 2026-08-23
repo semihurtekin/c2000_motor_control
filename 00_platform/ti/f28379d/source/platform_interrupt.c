@@ -30,3 +30,45 @@ Platform_IntStatusType Platform_IntSetTimer0(
 
     return status;
 }
+
+Platform_IntStatusType Platform_IntSetAdca1(
+    Platform_IsrType handler)
+{
+    Platform_IntStatusType status;
+
+    if(handler != NULL)
+    {
+        EALLOW;
+        PieVectTable.ADCA1_INT = handler;
+        EDIS;
+
+        status = PLATFORM_INT_STATUS_OK;
+    }
+    else
+    {
+        status = PLATFORM_INT_STATUS_INV_ARG;
+    }
+
+    return status;
+}
+
+Platform_IntStatusType Platform_IntSetAdcb1(
+    Platform_IsrType handler)
+{
+    Platform_IntStatusType status;
+
+    if(handler != NULL)
+    {
+        EALLOW;
+        PieVectTable.ADCB1_INT = handler;
+        EDIS;
+
+        status = PLATFORM_INT_STATUS_OK;
+    }
+    else
+    {
+        status = PLATFORM_INT_STATUS_INV_ARG;
+    }
+
+    return status;
+}
