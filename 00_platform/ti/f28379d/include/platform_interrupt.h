@@ -27,6 +27,9 @@ Platform_IntStatusType Platform_IntSetAdca1(
 Platform_IntStatusType Platform_IntSetAdcb1(
     Platform_IsrType handler);
 
+Platform_IntStatusType Platform_IntSetDmaCh1(
+    Platform_IsrType handler);
+    
 #ifdef __cplusplus
 }
 #endif

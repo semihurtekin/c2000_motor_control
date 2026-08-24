@@ -57,6 +57,7 @@
                                     <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/adc/include"/>
                                     <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/00_platform/ti/f28379d/include"/>
                                     <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/cpu_int/include"/>
+                                    <listOptionValue value="C:/Desktop/Work/TI/CCS_Workspace/c2000_motor_control/01_mcal/ti/f28379d/dma/include"/>
                                 </option>
                                 <option id="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEBUGGING_MODEL.710513139" superClass="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEBUGGING_MODEL" value="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEBUGGING_MODEL.SYMDEBUG__DWARF" valueType="enumerated"/>
                                 <option id="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE.223005138" superClass="com.ti.ccstudio.buildDefinitions.C2000_25.11.compilerID.DEFINE" valueType="definedSymbols">
