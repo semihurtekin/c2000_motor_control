@@ -2,7 +2,7 @@
 
 Motor control firmware project based on the TI TMS320F28379D.
 
-The goal of this project is to build a motor-control software stack from the low-level peripheral drivers up to the control and application layers, while making use of C2000-specific hardware features instead of treating the device like a generic MCU.
+The goal of this project is to build an IPMSM/SPMSM motor-control software stack from the low-level peripheral drivers up to the control and application layers, while making use of C2000-specific hardware features instead of treating the device like a generic MCU.
 
 The firmware is developed incrementally. Each layer is kept relatively small and hardware-specific functionality is pushed down to the lowest reasonable layer.
 
@@ -18,6 +18,7 @@ The firmware is developed incrementally. Each layer is kept relatively small and
 
 ## Software Architecture
 
+```text
 +--------------------------------------------------+
 |                Application / Services            |
 |                                                  |
