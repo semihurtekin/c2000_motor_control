@@ -1,0 +1,13 @@
+# Local development environment
+.codex/
+.theia/
+
+# TI CCS build outputs
+CPU1_RAM/
+CPU1_FLASH/
+Debug/
+Release/
+
+*.out
+*.obj
+*.map
