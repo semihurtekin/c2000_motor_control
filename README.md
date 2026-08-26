@@ -18,34 +18,32 @@ The firmware is developed incrementally. Each layer is kept relatively small and
 
 ## Software Architecture
 
-```text
 +--------------------------------------------------+
 |                Application / Services            |
 |                                                  |
 |  State machine, diagnostics, communication, etc. |
-+-------------------------+------------------------+
-                          |
-+-------------------------v------------------------+
-|                    HAL / Device                  |
-|                                                  |
-|  Motor PWM, current sensing, gate driver,        |
-|  encoder interface, fault handling               |
-+-------------------------+------------------------+
-                          |
-+-------------------------v------------------------+
-|                   Control Core                   |
-|                                                  |
-|  Clarke / Park, PI control, SVPWM,               |
-|  current and speed control                       |
-+-------------------------+------------------------+
-                          |
-+-------------------------v------------------------+
++----------------------+---------------------------+
+                       |
+             +---------+---------+
+             |                   |
+             v                   v
++------------------------+  +------------------------+
+|      HAL / Device      |  |      Control Core      |
+|                        |  |                        |
+| Motor PWM, current     |  | Clarke / Park,         |
+| sensing, gate driver,  |  | PI control, SVPWM,     |
+| encoder, fault handling|  | current / speed control|
++-----------+------------+  +------------------------+
+            |
+            v
++--------------------------------------------------+
 |                       MCAL                       |
 |                                                  |
 |  GPIO  ePWM  ADC  DMA  CMPSS  X-BAR             |
 |  PIE   CPU Timer  DAC  SCI  SPI                  |
 +-------------------------+------------------------+
                           |
-+-------------------------v------------------------+
+                          v
++--------------------------------------------------+
 |                TMS320F28379D Hardware            |
 +--------------------------------------------------+
