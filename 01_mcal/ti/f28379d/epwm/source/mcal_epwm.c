@@ -309,6 +309,10 @@ Mcal_EpwmStatusType Mcal_Epwm_EnableOneShotTrip(
                     epwmRegs->TZSEL.bit.OSHT1 = 1U;
                     break;
 
+                case MCAL_EPWM_TRIP_SOURCE_TZ4:
+                    epwmRegs->TZSEL.bit.OSHT4 = 1U;
+                    break;
+
                 default:
                     /* Do nothing. */
                     break;
@@ -855,7 +859,7 @@ static Mcal_EpwmStatusType IsTripSourceValid(
 {
     Mcal_EpwmStatusType status;
 
-    if(source == MCAL_EPWM_TRIP_SOURCE_TZ1)
+    if((source == MCAL_EPWM_TRIP_SOURCE_TZ1) || (source == MCAL_EPWM_TRIP_SOURCE_TZ4))
     {
         status = MCAL_EPWM_STATUS_OK;
     }

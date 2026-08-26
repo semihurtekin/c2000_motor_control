@@ -259,7 +259,7 @@ Mcal_GpioStatusType Mcal_Gpio_Read(
     Mcal_GpioLevelType * levelPtr);
 
 /**
- * @brief Sets qualification mode for the SPI, SCI config.
+ * @brief Sets the input qualification mode of one GPIO pin.
  *
  * @param[in]  pin      GPIO pin number.
  * @param[out] qual     Qualification type

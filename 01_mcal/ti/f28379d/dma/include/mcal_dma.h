@@ -12,6 +12,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*==============================================================================
  * Public Types
  *============================================================================*/
@@ -89,19 +93,12 @@ typedef struct
 /**
  * @brief Initializes the DMA controller to a known state.
  *
- * The DMA peripheral clock shall be enabled by the platform before this
- * function is called.
- *
  * @return Driver status.
  */
 Mcal_DmaStatusType Mcal_Dma_Init(void);
 
 /**
  * @brief Configures one DMA channel.
- *
- * The channel is soft-reset before configuration and remains disarmed after
- * this function returns. DMA v0.1 supports only 16-bit word transfers and
- * disables address wrapping.
  *
  * @param config DMA channel configuration.
  *
@@ -113,9 +110,6 @@ Mcal_DmaStatusType Mcal_Dma_InitChannel(
 /**
  * @brief Arms and starts one DMA channel.
  *
- * The configured peripheral trigger is enabled and the channel waits for the
- * first trigger event.
- *
  * @param channel DMA channel.
  *
  * @return Driver status.
@@ -125,8 +119,6 @@ Mcal_DmaStatusType Mcal_Dma_Start(
 
 /**
  * @brief Stops one DMA channel.
- *
- * Peripheral triggering is disabled before the channel is halted.
  *
  * @param channel DMA channel.
  *
@@ -149,9 +141,6 @@ Mcal_DmaStatusType Mcal_Dma_IsRunning(
 
 /**
  * @brief Reads whether a non-continuous transfer has completed.
- *
- * This result is meaningful after Mcal_Dma_Start() and provided the channel
- * has not been manually stopped or reinitialized.
  *
  * @param channel DMA channel.
  * @param done Receives 1U when the transfer is complete, otherwise 0U.
@@ -177,8 +166,6 @@ Mcal_DmaStatusType Mcal_Dma_IsOverrun(
 /**
  * @brief Clears the DMA channel error indication.
  *
- * F28379D ERRCLR clears both the overrun and synchronization error flags.
- *
  * @param channel DMA channel.
  *
  * @return Driver status.
@@ -189,11 +176,6 @@ Mcal_DmaStatusType Mcal_Dma_ClearOverrun(
 
 /**
  * @brief Enables one DMA channel interrupt.
- *
- * The interrupt can be generated at the beginning or at the end of a DMA
- * transfer. Beginning-of-transfer mode is useful for continuous ping-pong
- * buffering because the active address has already been loaded from the
- * shadow address when the ISR executes.
  *
  * @param channel DMA channel.
  * @param mode    DMA channel interrupt timing.
@@ -217,9 +199,6 @@ Mcal_DmaStatusType Mcal_Dma_DisableInterrupt(
 /**
  * @brief Updates the destination shadow address for the next DMA transfer.
  *
- * The active destination address of the transfer currently in progress is not
- * modified. DMA v0.1 keeps destination wrapping disabled.
- *
  * @param channel            DMA channel.
  * @param destinationAddress Destination address for the next transfer.
  *
@@ -228,5 +207,9 @@ Mcal_DmaStatusType Mcal_Dma_DisableInterrupt(
 Mcal_DmaStatusType Mcal_Dma_SetDstStartAddress(
     Mcal_DmaChannelType channel,
     volatile uint16_t * destinationAddress);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MCAL_DMA_H */

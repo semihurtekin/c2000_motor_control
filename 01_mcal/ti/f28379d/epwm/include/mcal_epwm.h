@@ -104,7 +104,8 @@ typedef struct
 
 typedef enum
 {
-    MCAL_EPWM_TRIP_SOURCE_TZ1 = 1U
+    MCAL_EPWM_TRIP_SOURCE_TZ1 = 1U,
+    MCAL_EPWM_TRIP_SOURCE_TZ4 = 4U
 } Mcal_EpwmTripSourceType;
 
 
