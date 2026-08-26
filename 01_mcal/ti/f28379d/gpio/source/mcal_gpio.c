@@ -506,6 +506,37 @@ Mcal_GpioStatusType Mcal_Gpio_Read(
     return status;
 }
 
+Mcal_GpioStatusType Mcal_Gpio_SetQualMode(
+    Mcal_GpioPinType pin,
+    Mcal_GpioQualType qual)
+{
+    Mcal_GpioStatusType status;
+
+    status = IsPinValid(pin);
+
+    if(status == MCAL_GPIO_STATUS_OK)
+    {
+        status = CheckPinAccess(pin);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(status == MCAL_GPIO_STATUS_OK)
+    {
+        EALLOW;
+        status = SetQual(pin, qual);
+        EDIS;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
 /*==============================================================================
  * Private Function Definitions
  *============================================================================*/

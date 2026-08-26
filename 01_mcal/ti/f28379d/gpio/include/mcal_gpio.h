@@ -258,6 +258,18 @@ Mcal_GpioStatusType Mcal_Gpio_Read(
     Mcal_GpioPinType pin,
     Mcal_GpioLevelType * levelPtr);
 
+/**
+ * @brief Sets qualification mode for the SPI, SCI config.
+ *
+ * @param[in]  pin      GPIO pin number.
+ * @param[out] qual     Qualification type
+ *
+ * @return GPIO service status.
+ */
+Mcal_GpioStatusType Mcal_Gpio_SetQualMode(
+    Mcal_GpioPinType pin,
+    Mcal_GpioQualType qual);
+
 #ifdef __cplusplus
 }
 #endif

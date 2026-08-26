@@ -14,12 +14,14 @@
  * Private Macros
  *============================================================================*/
 
-#define PLATFORM_CLOCK_XTAL_SRC      (1U)
-#define PLATFORM_CLOCK_IMULT         (40U)
-#define PLATFORM_CLOCK_FMULT         (0U)
+#define PLATFORM_CLOCK_XTAL_SRC            (1U)
+#define PLATFORM_CLOCK_IMULT               (40U)
+#define PLATFORM_CLOCK_FMULT               (0U)
 
-#define PLATFORM_CLOCK_DIV_SAFE      (2U)
-#define PLATFORM_CLOCK_DIV_FINAL     (1U)
+#define PLATFORM_CLOCK_DIV_SAFE            (2U)
+#define PLATFORM_CLOCK_DIV_FINAL           (1U)
+
+#define PLATFORM_CLOCK_LSPCLK_DIV_4        (2U)
 
 /*==============================================================================
  * Private Types
@@ -73,7 +75,7 @@ Platform_ClockStatusType Platform_ClockInit(void)
         ((PLATFORM_CLOCK_FMULT << 8U) |
          PLATFORM_CLOCK_IMULT);
 
-    while (ClkCfgRegs.SYSPLLSTS.bit.LOCKS == 0U)
+    while(ClkCfgRegs.SYSPLLSTS.bit.LOCKS == 0U)
     {
         /* Wait for PLL lock. */
     }
@@ -93,8 +95,12 @@ Platform_ClockStatusType Platform_ClockInit(void)
     ClkCfgRegs.SYSCLKDIVSEL.bit.PLLSYSCLKDIV =
         PLATFORM_CLOCK_DIV_FINAL;
 
-    /* Divide the PLLCLK to 2 for EPWM clock (100 MHz)*/
+    /* Divide PLLSYSCLK by 2 for the 100 MHz ePWM clock. */
     ClkCfgRegs.PERCLKDIVSEL.bit.EPWMCLKDIV = 1U;
+
+    /* Divide 200 MHz SYSCLK by 4 for the 50 MHz LSPCLK. */
+    ClkCfgRegs.LOSPCP.bit.LSPCLKDIV =
+        PLATFORM_CLOCK_LSPCLK_DIV_4;
 
     status = PLATFORM_CLOCK_STATUS_OK;
 

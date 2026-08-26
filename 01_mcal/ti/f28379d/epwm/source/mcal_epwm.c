@@ -803,8 +803,7 @@ static Mcal_EpwmStatusType IsModeValid(
 {
     Mcal_EpwmStatusType status;
 
-    if(((uint16_t)mode >= (uint16_t)MCAL_EPWM_COUNT_UP) &&
-       ((uint16_t)mode <= (uint16_t)MCAL_EPWM_COUNT_FREEZE))
+    if((uint16_t)mode <= (uint16_t)MCAL_EPWM_COUNT_FREEZE)
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -821,8 +820,7 @@ static Mcal_EpwmStatusType IsClkDivValid(
 {
     Mcal_EpwmStatusType status;
 
-    if(((uint16_t)clkDiv >= (uint16_t)MCAL_EPWM_CLKDIV_1) &&
-       ((uint16_t)clkDiv <= (uint16_t)MCAL_EPWM_CLKDIV_128))
+    if((uint16_t)clkDiv <= (uint16_t)MCAL_EPWM_CLKDIV_128)
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -839,8 +837,7 @@ static Mcal_EpwmStatusType IsHsClkDivValid(
 {
     Mcal_EpwmStatusType status;
 
-    if(((uint16_t)hsClkDiv >= (uint16_t)MCAL_EPWM_HSCLKDIV_1) &&
-       ((uint16_t)hsClkDiv <= (uint16_t)MCAL_EPWM_HSCLKDIV_14))
+    if((uint16_t)hsClkDiv <= (uint16_t)MCAL_EPWM_HSCLKDIV_14)
     {
         status = MCAL_EPWM_STATUS_OK;
     }
