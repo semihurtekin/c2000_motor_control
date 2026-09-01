@@ -96,6 +96,9 @@ static Mcal_EpwmStatusType IsAdcTrigSourceValid(
 static Mcal_EpwmStatusType IsAdcPrescaleValid(
     uint16_t eventPrescale);
 
+static Mcal_EpwmStatusType IsTbClkSyncValid(
+    Mcal_EpwmTbClkSyncType state);
+
 /*==============================================================================
  * Public Function Definitions
  *============================================================================*/
@@ -605,6 +608,26 @@ Mcal_EpwmStatusType Mcal_Epwm_ClearAdcTrigFlag(
     return status;
 }
 
+Mcal_EpwmStatusType Mcal_Epwm_SetTbClkSync(
+    Mcal_EpwmTbClkSyncType state)
+{
+    Mcal_EpwmStatusType status;
+    status = IsTbClkSyncValid(state);
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        EALLOW;
+        CpuSysRegs.PCLKCR0.bit.TBCLKSYNC = (uint16_t)state;
+        EDIS;
+    }
+    else
+    {
+        // Do nothing.
+    }
+
+    return status;
+}
+
 /*==============================================================================
  * Private Function Definitions
  *============================================================================*/
@@ -995,6 +1018,24 @@ static Mcal_EpwmStatusType IsCompareValid(
     else
     {
         status = MCAL_EPWM_STATUS_INV_ID;
+    }
+
+    return status;
+}
+
+static Mcal_EpwmStatusType IsTbClkSyncValid(
+    Mcal_EpwmTbClkSyncType state)
+{
+    Mcal_EpwmStatusType status;
+    status = MCAL_EPWM_STATUS_INV_ARG;
+
+    if((state == MCAL_EPWM_TBCLK_SYNC_DISABLE) || (state == MCAL_EPWM_TBCLK_SYNC_ENABLE))
+    {
+        status = MCAL_EPWM_STATUS_OK;
+    }
+    else
+    {
+        // Do nothing.
     }
 
     return status;

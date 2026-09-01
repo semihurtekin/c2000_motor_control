@@ -130,6 +130,12 @@ typedef enum
     MCAL_EPWM_ADC_TRIG_CMPA_DOWN = 5U
 } Mcal_EpwmAdcTrigSourceType;
 
+typedef enum
+{
+    MCAL_EPWM_TBCLK_SYNC_DISABLE = 0U,
+    MCAL_EPWM_TBCLK_SYNC_ENABLE = 1U
+} Mcal_EpwmTbClkSyncType;
+
 typedef struct
 {
     Mcal_EpwmIdType module;
@@ -301,6 +307,16 @@ Mcal_EpwmStatusType Mcal_Epwm_IsAdcTrigFlagSet(
 Mcal_EpwmStatusType Mcal_Epwm_ClearAdcTrigFlag(
     Mcal_EpwmIdType module,
     Mcal_EpwmAdcSocType soc);
+
+/**
+ * @brief Controls the global ePWM time-base clock synchronization gate.
+ *
+ * @param state Time-base clock synchronization state.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_SetTbClkSync(
+    Mcal_EpwmTbClkSyncType state);
 
 #ifdef __cplusplus
 }
