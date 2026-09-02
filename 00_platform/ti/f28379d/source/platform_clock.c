@@ -23,6 +23,8 @@
 
 #define PLATFORM_CLOCK_LSPCLK_DIV_4        (2U)
 
+#define PLATFORM_CLOCK_EPWMCLK_HZ          (100000000UL)
+
 /*==============================================================================
  * Private Types
  *============================================================================*/
@@ -107,6 +109,11 @@ Platform_ClockStatusType Platform_ClockInit(void)
     EDIS;
 
     return status;
+}
+
+uint32_t Platform_ClockGetEpwmClkHz(void)
+{
+    return PLATFORM_CLOCK_EPWMCLK_HZ;
 }
 
 /*==============================================================================

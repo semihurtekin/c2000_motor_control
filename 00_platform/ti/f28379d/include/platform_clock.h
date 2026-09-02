@@ -42,6 +42,13 @@ typedef enum
  */
 Platform_ClockStatusType Platform_ClockInit(void);
 
+/**
+ * @brief Returns the configured ePWM peripheral clock frequency.
+ *
+ * @return ePWM peripheral clock frequency in Hz.
+ */
+uint32_t Platform_ClockGetEpwmClkHz(void);
+
 
 #ifdef __cplusplus
 }
