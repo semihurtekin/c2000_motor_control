@@ -81,15 +81,34 @@ public:
     /**
      * @brief Updates the three-phase PWM duty command.
      *
-     * All phase duties are validated and converted before any hardware compare
-     * register is updated.
-     *
      * @param dutyCycle Normalized phase duties in the range 0.0F through 1.0F.
      *
      * @return HAL motor PWM status.
      */
     MotorPwmStatus SetDuty(
         const MotorPwmDuty& dutyCycle);
+
+    /**
+     * @brief Enables the three-phase PWM duty output.
+     *
+     * @return HAL motor PWM status.
+     */
+    MotorPwmStatus Enable(void);
+
+    /**
+     * @brief Disables the three-phase PWM duty output.
+     *
+     * @return HAL motor PWM status.
+     */
+    MotorPwmStatus Disable(void);
+
+     /**
+     * @brief Provides current status of the three-phase PWM duty output.
+     *
+     * @return Current status of the three-phase PWM duty output.
+     */
+    bool IsEnabled(void) const;
+
 
 private:
     struct MotorPwmTiming
@@ -116,6 +135,11 @@ private:
 
     uint16_t CalculateCompare(
         float duty) const;
+
+    MotorPwmStatus OutputPwmEnable(void);
+    
+    MotorPwmStatus OutputPwmDisable(void);
+
 
     bool initialized_;
     bool enabled_;

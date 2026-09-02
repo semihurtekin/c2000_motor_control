@@ -39,6 +39,16 @@ Hal::MotorPwmStatus WriteCompareValues(
     uint16_t phaseVCompare,
     uint16_t phaseWCompare);
 
+Hal::MotorPwmStatus ClearAllTrips(
+    const Bsp_MotorPwmHwType& hwConfig);
+
+Hal::MotorPwmStatus ForceAllTrips(
+    const Bsp_MotorPwmHwType& hwConfig);
+
+Hal::MotorPwmStatus AreAllTripsInactive(
+    const Bsp_MotorPwmHwType& hwConfig,
+    bool& allInactive);
+
 }
 
 /*==============================================================================
@@ -129,7 +139,7 @@ MotorPwmStatus MotorPwm::SetDuty(
 
         hwConfig = Bsp_MotorHw_GetPwmConfig();
 
-        if(hwConfig == NULL)
+        if(hwConfig == 0)
         {
             status = MOTOR_PWM_STATUS_HW_ERROR;
         }
@@ -148,6 +158,50 @@ MotorPwmStatus MotorPwm::SetDuty(
     }
 
     return status;
+}
+
+MotorPwmStatus MotorPwm::Enable(void)
+{
+    MotorPwmStatus status;
+
+    if(initialized_ == false)
+    {
+        status = MOTOR_PWM_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        if(enabled_ == true)
+        {
+            status = MOTOR_PWM_STATUS_OK;
+        }
+        else
+        {
+            status = OutputPwmEnable();
+        }
+    }
+
+    return status;
+}
+
+MotorPwmStatus MotorPwm::Disable(void)
+{
+    MotorPwmStatus status;
+    
+    if(initialized_ == false)
+    {
+        status = MOTOR_PWM_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        status = OutputPwmDisable();
+    }
+
+    return status;
+}
+
+bool MotorPwm::IsEnabled(void) const
+{
+    return enabled_;
 }
 
 /*==============================================================================
@@ -351,6 +405,97 @@ uint16_t MotorPwm::CalculateCompare(
     return compareResult;
 }
 
+MotorPwmStatus MotorPwm::OutputPwmEnable(void)
+{
+    MotorPwmStatus status;
+    MotorPwmStatus rollbackStatus;
+    const Bsp_MotorPwmHwType * hwConfig;
+    bool allTripsInactive;
+
+    status = MOTOR_PWM_STATUS_HW_ERROR;
+    allTripsInactive = false;
+
+    hwConfig = Bsp_MotorHw_GetPwmConfig();
+
+    if(hwConfig != 0)
+    {
+        status = ClearAllTrips(*hwConfig);
+
+        if(status == MOTOR_PWM_STATUS_OK)
+        {
+            status = AreAllTripsInactive(
+                *hwConfig,
+                allTripsInactive);
+        }
+        else
+        {
+            /* Do nothing. */
+        }
+
+        if((status == MOTOR_PWM_STATUS_OK) &&
+           (allTripsInactive == true))
+        {
+            enabled_ = true;
+        }
+        else
+        {
+            /*
+             * Restore the safe hardware state if the enable sequence
+             * did not complete successfully.
+             */
+            rollbackStatus = ForceAllTrips(*hwConfig);
+
+            enabled_ = false;
+
+            if(rollbackStatus != MOTOR_PWM_STATUS_OK)
+            {
+                status = MOTOR_PWM_STATUS_HW_ERROR;
+            }
+            else
+            {
+                /*
+                 * Preserve the original enable failure status.
+                 */
+                if(status == MOTOR_PWM_STATUS_OK)
+                {
+                    status = MOTOR_PWM_STATUS_HW_ERROR;
+                }
+                else
+                {
+                    /* Do nothing. */
+                }
+            }
+        }
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+MotorPwmStatus MotorPwm::OutputPwmDisable(void)
+{
+    MotorPwmStatus status;
+    const Bsp_MotorPwmHwType * hwConfig;
+
+    hwConfig = Bsp_MotorHw_GetPwmConfig();
+
+    if(hwConfig != 0)
+    {
+        status = ForceAllTrips(*hwConfig);
+        enabled_ = false;
+    }
+    else 
+    {
+        status = MOTOR_PWM_STATUS_HW_ERROR;
+        enabled_ = false;
+    }
+
+    return status;
+}
+
 } /* namespace Hal */
 
 /*==============================================================================
@@ -492,6 +637,155 @@ Hal::MotorPwmStatus WriteCompareValues(
     else
     {
         /* Do nothing. */
+    }
+
+    return status;
+}
+
+Hal::MotorPwmStatus ClearAllTrips(
+    const Bsp_MotorPwmHwType& hwConfig)
+{
+    Hal::MotorPwmStatus status;
+    Mcal_EpwmStatusType mcalStatus;
+
+    status = Hal::MOTOR_PWM_STATUS_OK;
+
+    mcalStatus =
+        Mcal_Epwm_ClearTrip(
+            hwConfig.phaseU.module);
+
+    if(mcalStatus == MCAL_EPWM_STATUS_OK)
+    {
+        mcalStatus =
+            Mcal_Epwm_ClearTrip(
+                hwConfig.phaseV.module);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(mcalStatus == MCAL_EPWM_STATUS_OK)
+    {
+        mcalStatus =
+            Mcal_Epwm_ClearTrip(
+                hwConfig.phaseW.module);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(mcalStatus != MCAL_EPWM_STATUS_OK)
+    {
+        status =
+            Hal::MOTOR_PWM_STATUS_HW_ERROR;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Hal::MotorPwmStatus AreAllTripsInactive(
+    const Bsp_MotorPwmHwType& hwConfig,
+    bool& allInactive)
+{
+    Hal::MotorPwmStatus status;
+    Mcal_EpwmStatusType mcalStatus;
+    uint16_t phaseUTrip;
+    uint16_t phaseVTrip;
+    uint16_t phaseWTrip;
+
+    status = Hal::MOTOR_PWM_STATUS_OK;
+    allInactive = false;
+
+    mcalStatus =
+        Mcal_Epwm_IsTripActive(
+            hwConfig.phaseU.module,
+            &phaseUTrip);
+
+    if(mcalStatus == MCAL_EPWM_STATUS_OK)
+    {
+        mcalStatus =
+            Mcal_Epwm_IsTripActive(
+                hwConfig.phaseV.module,
+                &phaseVTrip);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(mcalStatus == MCAL_EPWM_STATUS_OK)
+    {
+        mcalStatus =
+            Mcal_Epwm_IsTripActive(
+                hwConfig.phaseW.module,
+                &phaseWTrip);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(mcalStatus == MCAL_EPWM_STATUS_OK)
+    {
+        if((phaseUTrip == 0U) &&
+           (phaseVTrip == 0U) &&
+           (phaseWTrip == 0U))
+        {
+            allInactive = true;
+        }
+        else
+        {
+            /* At least one output remains tripped. */
+        }
+    }
+    else
+    {
+        status =
+            Hal::MOTOR_PWM_STATUS_HW_ERROR;
+    }
+
+    return status;
+}
+
+Hal::MotorPwmStatus ForceAllTrips(
+    const Bsp_MotorPwmHwType& hwConfig)
+{
+    Hal::MotorPwmStatus status;
+    Mcal_EpwmStatusType phaseUStatus;
+    Mcal_EpwmStatusType phaseVStatus;
+    Mcal_EpwmStatusType phaseWStatus;
+
+    /*
+     * Attempt every safety action even if one of them fails.
+     */
+    phaseUStatus =
+        Mcal_Epwm_ForceTrip(
+            hwConfig.phaseU.module);
+
+    phaseVStatus =
+        Mcal_Epwm_ForceTrip(
+            hwConfig.phaseV.module);
+
+    phaseWStatus =
+        Mcal_Epwm_ForceTrip(
+            hwConfig.phaseW.module);
+
+    if((phaseUStatus == MCAL_EPWM_STATUS_OK) &&
+       (phaseVStatus == MCAL_EPWM_STATUS_OK) &&
+       (phaseWStatus == MCAL_EPWM_STATUS_OK))
+    {
+        status = Hal::MOTOR_PWM_STATUS_OK;
+    }
+    else
+    {
+        status =
+            Hal::MOTOR_PWM_STATUS_HW_ERROR;
     }
 
     return status;
