@@ -33,6 +33,12 @@ Hal::MotorPwmStatus InitPhase(
     uint16_t period,
     uint16_t deadBand);
 
+Hal::MotorPwmStatus WriteCompareValues(
+    const Bsp_MotorPwmHwType& hwConfig,
+    uint16_t phaseUCompare,
+    uint16_t phaseVCompare,
+    uint16_t phaseWCompare);
+
 }
 
 /*==============================================================================
@@ -81,6 +87,60 @@ MotorPwmStatus MotorPwm::Init(
     {
         period_ = timing.period;
         initialized_ = true;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+MotorPwmStatus MotorPwm::SetDuty(
+    const MotorPwmDuty& dutyCycle)
+{
+    MotorPwmStatus status;
+    uint16_t phaseUCompare;
+    uint16_t phaseVCompare;
+    uint16_t phaseWCompare;
+    const Bsp_MotorPwmHwType * hwConfig;
+
+    status = MOTOR_PWM_STATUS_OK;
+
+    if(initialized_ == false)
+    {
+        status = MOTOR_PWM_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        status = ValidateDuty(dutyCycle);
+    }
+
+    if(status == MOTOR_PWM_STATUS_OK)
+    {
+        phaseUCompare =
+            CalculateCompare(dutyCycle.phaseU);
+
+        phaseVCompare =
+            CalculateCompare(dutyCycle.phaseV);
+
+        phaseWCompare =
+            CalculateCompare(dutyCycle.phaseW);
+
+        hwConfig = Bsp_MotorHw_GetPwmConfig();
+
+        if(hwConfig == NULL)
+        {
+            status = MOTOR_PWM_STATUS_HW_ERROR;
+        }
+        else
+        {
+            status = WriteCompareValues(
+                *hwConfig,
+                phaseUCompare,
+                phaseVCompare,
+                phaseWCompare);
+        }
     }
     else
     {
@@ -256,6 +316,41 @@ MotorPwmStatus MotorPwm::ConfigureHardware(
     return status;
 }
 
+MotorPwmStatus MotorPwm::ValidateDuty(
+    const MotorPwmDuty& dutyCycle) const
+{
+    MotorPwmStatus status;
+
+    status = MOTOR_PWM_STATUS_INVALID_DUTY;
+
+    if(((dutyCycle.phaseU >= 0.0F) &&
+        (dutyCycle.phaseU <= 1.0F)) &&
+       ((dutyCycle.phaseV >= 0.0F) &&
+        (dutyCycle.phaseV <= 1.0F)) &&
+       ((dutyCycle.phaseW >= 0.0F) &&
+        (dutyCycle.phaseW <= 1.0F)))
+    {
+        status = MOTOR_PWM_STATUS_OK;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+uint16_t MotorPwm::CalculateCompare(
+    float duty) const
+{
+    uint16_t compareResult;
+
+    compareResult =
+        (uint16_t)((duty * (float)period_) + 0.5F);
+
+    return compareResult;
+}
+
 } /* namespace Hal */
 
 /*==============================================================================
@@ -330,6 +425,59 @@ Hal::MotorPwmStatus InitPhase(
     {
         mcalStatus =
             Mcal_Epwm_ForceTrip(module);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(mcalStatus != MCAL_EPWM_STATUS_OK)
+    {
+        status =
+            Hal::MOTOR_PWM_STATUS_HW_ERROR;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Hal::MotorPwmStatus WriteCompareValues(
+    const Bsp_MotorPwmHwType& hwConfig,
+    uint16_t phaseUCompare,
+    uint16_t phaseVCompare,
+    uint16_t phaseWCompare)
+{
+    Hal::MotorPwmStatus status;
+    Mcal_EpwmStatusType mcalStatus;
+
+    status = Hal::MOTOR_PWM_STATUS_OK;
+
+    mcalStatus =
+        Mcal_Epwm_SetCompareA(
+            hwConfig.phaseU.module,
+            phaseUCompare);
+
+    if(mcalStatus == MCAL_EPWM_STATUS_OK)
+    {
+        mcalStatus =
+            Mcal_Epwm_SetCompareA(
+                hwConfig.phaseV.module,
+                phaseVCompare);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(mcalStatus == MCAL_EPWM_STATUS_OK)
+    {
+        mcalStatus =
+            Mcal_Epwm_SetCompareA(
+                hwConfig.phaseW.module,
+                phaseWCompare);
     }
     else
     {

@@ -1,6 +1,11 @@
 /**
  * @file    hal_motor_pwm.hpp
  * @brief   Three-phase motor PWM hardware abstraction interface.
+ *
+ * @details
+ * This module provides a motor-control-oriented abstraction for synchronized
+ * three-phase PWM generation. MCU-specific peripheral details are kept below
+ * the HAL boundary.
  */
 
 #ifndef HAL_MOTOR_PWM_HPP
@@ -73,6 +78,19 @@ public:
     MotorPwmStatus Init(
         const MotorPwmConfig& config);
 
+    /**
+     * @brief Updates the three-phase PWM duty command.
+     *
+     * All phase duties are validated and converted before any hardware compare
+     * register is updated.
+     *
+     * @param dutyCycle Normalized phase duties in the range 0.0F through 1.0F.
+     *
+     * @return HAL motor PWM status.
+     */
+    MotorPwmStatus SetDuty(
+        const MotorPwmDuty& dutyCycle);
+
 private:
     struct MotorPwmTiming
     {
@@ -92,6 +110,12 @@ private:
 
     MotorPwmStatus ConfigureHardware(
         const MotorPwmTiming& timing);
+
+    MotorPwmStatus ValidateDuty(
+        const MotorPwmDuty& dutyCycle) const;
+
+    uint16_t CalculateCompare(
+        float duty) const;
 
     bool initialized_;
     bool enabled_;
