@@ -111,6 +111,75 @@ Platform_ClockStatusType Platform_ClockInit(void)
     return status;
 }
 
+Platform_ClockStatusType Platform_ClockEnableEpwm(
+    Platform_EpwmModuleType module)
+{
+    Platform_ClockStatusType status;
+
+    status = PLATFORM_CLOCK_STATUS_OK;
+
+    EALLOW;
+
+    switch(module)
+    {
+        case PLATFORM_EPWM_MODULE_1:
+            CpuSysRegs.PCLKCR2.bit.EPWM1 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_2:
+            CpuSysRegs.PCLKCR2.bit.EPWM2 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_3:
+            CpuSysRegs.PCLKCR2.bit.EPWM3 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_4:
+            CpuSysRegs.PCLKCR2.bit.EPWM4 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_5:
+            CpuSysRegs.PCLKCR2.bit.EPWM5 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_6:
+            CpuSysRegs.PCLKCR2.bit.EPWM6 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_7:
+            CpuSysRegs.PCLKCR2.bit.EPWM7 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_8:
+            CpuSysRegs.PCLKCR2.bit.EPWM8 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_9:
+            CpuSysRegs.PCLKCR2.bit.EPWM9 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_10:
+            CpuSysRegs.PCLKCR2.bit.EPWM10 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_11:
+            CpuSysRegs.PCLKCR2.bit.EPWM11 = 1U;
+            break;
+
+        case PLATFORM_EPWM_MODULE_12:
+            CpuSysRegs.PCLKCR2.bit.EPWM12 = 1U;
+            break;
+
+        default:
+            status = PLATFORM_CLOCK_STATUS_INVALID_PARAM;
+            break;
+    }
+
+    EDIS;
+
+    return status;
+}
+
 uint32_t Platform_ClockGetEpwmClkHz(void)
 {
     return PLATFORM_CLOCK_EPWMCLK_HZ;
@@ -125,3 +194,4 @@ static void ClockSourceDelay(void)
     asm(" RPT #250 || NOP");
     asm(" RPT #50 || NOP");
 }
+

@@ -8,6 +8,7 @@
  *============================================================================*/
 
 #include "bsp_motor_hw.h"
+#include "platform_clock.h"
 
 /*==============================================================================
  * Private Macros
@@ -19,16 +20,19 @@
  * Private Variables
  *============================================================================*/
 
+
 /*==============================================================================
-* Private Function Declarations
-*============================================================================*/
+ * Private Function Declarations
+ *============================================================================*/
+
+static Bsp_MotorHwStatusType EnablePwmClocks(void);
 
 static Bsp_MotorHwStatusType InitPwmPhase(
     const Bsp_MotorPwmPhaseType * phase);
-    
+
 /*==============================================================================
-* Public Function Definitions
-*============================================================================*/
+ * Public Function Definitions
+ *============================================================================*/
 
 static const Bsp_MotorPwmHwType MotorPwmHw =
 {
@@ -64,20 +68,29 @@ Bsp_MotorHwStatusType Bsp_MotorHw_Init(void)
 {
     Bsp_MotorHwStatusType status;
 
-    status = InitPwmPhase(&MotorPwmHw.phaseU);
+    status = EnablePwmClocks();
+
+    if(status == BSP_MOTOR_HW_STATUS_OK)
+    {
+        status = InitPwmPhase(&MotorPwmHw.phaseU);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
 
     if(status == BSP_MOTOR_HW_STATUS_OK)
     {
         status = InitPwmPhase(&MotorPwmHw.phaseV);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
 
-        if(status == BSP_MOTOR_HW_STATUS_OK)
-        {
-            status = InitPwmPhase(&MotorPwmHw.phaseW);
-        }
-        else
-        {
-            /* Do nothing. */
-        }
+    if(status == BSP_MOTOR_HW_STATUS_OK)
+    {
+        status = InitPwmPhase(&MotorPwmHw.phaseW);
     }
     else
     {
@@ -87,11 +100,55 @@ Bsp_MotorHwStatusType Bsp_MotorHw_Init(void)
     return status;
 }
 
-
 /*==============================================================================
  * Private Function Definitions
  *============================================================================*/
- 
+
+static Bsp_MotorHwStatusType EnablePwmClocks(void)
+{
+    Bsp_MotorHwStatusType status;
+    Platform_ClockStatusType clockStatus;
+
+    status = BSP_MOTOR_HW_STATUS_INIT_FAILED;
+
+    clockStatus =
+        Platform_ClockEnableEpwm(
+            PLATFORM_EPWM_MODULE_1);
+
+    if(clockStatus == PLATFORM_CLOCK_STATUS_OK)
+    {
+        clockStatus =
+            Platform_ClockEnableEpwm(
+                PLATFORM_EPWM_MODULE_2);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(clockStatus == PLATFORM_CLOCK_STATUS_OK)
+    {
+        clockStatus =
+            Platform_ClockEnableEpwm(
+                PLATFORM_EPWM_MODULE_3);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(clockStatus == PLATFORM_CLOCK_STATUS_OK)
+    {
+        status = BSP_MOTOR_HW_STATUS_OK;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
 static Bsp_MotorHwStatusType InitPwmPhase(
     const Bsp_MotorPwmPhaseType * phase)
 {
@@ -126,3 +183,4 @@ static Bsp_MotorHwStatusType InitPwmPhase(
 
     return status;
 }
+
