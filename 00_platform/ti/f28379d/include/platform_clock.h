@@ -48,6 +48,14 @@ typedef enum
     PLATFORM_EPWM_MODULE_12
 } Platform_EpwmModuleType;
 
+typedef enum
+{
+    PLATFORM_ADC_MODULE_A = 0U,
+    PLATFORM_ADC_MODULE_B,
+    PLATFORM_ADC_MODULE_C,
+    PLATFORM_ADC_MODULE_D
+} Platform_AdcModuleType;
+
 /*==============================================================================
  * Public Function Declarations
  *============================================================================*/
@@ -75,6 +83,16 @@ Platform_ClockStatusType Platform_ClockEnableEpwm(
  * @return ePWM peripheral clock frequency in Hz.
  */
 uint32_t Platform_ClockGetEpwmClkHz(void);
+
+/**
+ * @brief Enables the peripheral clock for an ADC module.
+ *
+ * @param module ADC module whose peripheral clock shall be enabled.
+ *
+ * @return Clock status.
+ */
+Platform_ClockStatusType Platform_ClockEnableAdc(
+    Platform_AdcModuleType module);
 
 #ifdef __cplusplus
 }

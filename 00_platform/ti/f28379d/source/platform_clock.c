@@ -185,6 +185,43 @@ uint32_t Platform_ClockGetEpwmClkHz(void)
     return PLATFORM_CLOCK_EPWMCLK_HZ;
 }
 
+Platform_ClockStatusType Platform_ClockEnableAdc(
+    Platform_AdcModuleType module)
+{
+    Platform_ClockStatusType status;
+
+    status = PLATFORM_CLOCK_STATUS_OK;
+
+    EALLOW;
+    
+    switch(module)
+    {
+        case PLATFORM_ADC_MODULE_A:
+            CpuSysRegs.PCLKCR13.bit.ADC_A = 1U;
+            break;
+
+        case PLATFORM_ADC_MODULE_B:
+            CpuSysRegs.PCLKCR13.bit.ADC_B = 1U;
+            break;
+
+        case PLATFORM_ADC_MODULE_C:
+            CpuSysRegs.PCLKCR13.bit.ADC_C = 1U;
+            break;
+
+        case PLATFORM_ADC_MODULE_D:
+            CpuSysRegs.PCLKCR13.bit.ADC_D = 1U;
+            break;
+
+        default:
+            status = PLATFORM_CLOCK_STATUS_INVALID_PARAM;
+            break;
+    }
+
+    EDIS;
+
+    return status;
+}
+
 /*==============================================================================
  * Private Function Definitions
  *============================================================================*/
