@@ -60,7 +60,10 @@ public:
     CurrentSense();
 
     /**
-     * @brief Initializes the current-sense hardware and scaling parameters.
+     * @brief Initializes current-sense hardware and scaling parameters.
+     *
+     * @pre The motor ePWM time-base resource used as the ADC sampling trigger
+     *      has been initialized and its peripheral clock is available.
      *
      * @param config Current-sense configuration.
      *
@@ -72,12 +75,16 @@ public:
     /**
      * @brief Performs zero-current offset calibration.
      *
+     * The motor power stage shall be in a zero-current safe state before this
+     * function is called. Calibration samples are acquired synchronously from
+     * phase U and phase V using the configured ePWM-triggered ADC path.
+     *
      * @return Current-sense status.
      */
     CurrentSenseStatus Calibrate(void);
 
     /**
-     * @brief Returns whether a valid current-sense calibration is available.
+     * @brief Returns whether a valid calibration is available.
      *
      * @return true when calibrated, otherwise false.
      */
@@ -85,6 +92,9 @@ public:
 
     /**
      * @brief Returns the validated fast-path current-sense configuration.
+     *
+     * The output parameter is modified only when initialization and
+     * calibration are both valid.
      *
      * @param config Receives the CLA-compatible fast-path configuration.
      *
