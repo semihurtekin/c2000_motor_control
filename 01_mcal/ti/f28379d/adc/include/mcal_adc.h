@@ -86,7 +86,6 @@ typedef enum
     MCAL_ADC_STATUS_INV_ARG = 2U
 } Mcal_AdcStatusType;
 
-
 typedef enum
 {
     MCAL_ADC_INT_1 = 1U,
@@ -120,9 +119,8 @@ typedef struct
  *
  * ADC v0.1 uses 12-bit single-ended operation and ADCCLK = SYSCLK / 4.
  * TI AdcSetMode() is used as the vendor boundary for device factory trim.
- *
- * The caller shall wait at least 500 us after this function before allowing
- * the first ADC conversion trigger.
+ * The required ADC power-up settling time is completed before this function
+ * returns.
  *
  * @param adc Selected ADC module.
  *
@@ -162,7 +160,6 @@ Mcal_AdcStatusType Mcal_Adc_GetResult(
     Mcal_AdcSocType soc,
     uint16_t * result);
 
-
 /**
  * @brief Configures and enables one ADC interrupt generator.
  *
@@ -177,6 +174,20 @@ Mcal_AdcStatusType Mcal_Adc_GetResult(
  */
 Mcal_AdcStatusType Mcal_Adc_EnableInterrupt(
     const Mcal_AdcIntConfigType * config);
+
+/**
+ * @brief Reads one ADC interrupt flag.
+ *
+ * @param adc Selected ADC module.
+ * @param adcInt ADC interrupt generator.
+ * @param flagSet Receives 1U when the flag is set, otherwise 0U.
+ *
+ * @return Driver status.
+ */
+Mcal_AdcStatusType Mcal_Adc_IsIntFlagSet(
+    Mcal_AdcIdType adc,
+    Mcal_AdcIntType adcInt,
+    uint16_t * flagSet);
 
 /**
  * @brief Clears one ADC interrupt flag.

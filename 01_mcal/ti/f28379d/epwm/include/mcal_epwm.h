@@ -101,13 +101,11 @@ typedef struct
     uint16_t fallingDelay;
 } Mcal_EpwmDeadBandConfigType;
 
-
 typedef enum
 {
     MCAL_EPWM_TRIP_SOURCE_TZ1 = 1U,
     MCAL_EPWM_TRIP_SOURCE_TZ4 = 4U
 } Mcal_EpwmTripSourceType;
-
 
 typedef enum
 {
@@ -129,6 +127,12 @@ typedef enum
     MCAL_EPWM_ADC_TRIG_CMPA_UP = 4U,
     MCAL_EPWM_ADC_TRIG_CMPA_DOWN = 5U
 } Mcal_EpwmAdcTrigSourceType;
+
+typedef enum
+{
+    MCAL_EPWM_ADC_TRIG_STATE_DISABLE = 0U,
+    MCAL_EPWM_ADC_TRIG_STATE_ENABLE = 1U
+} Mcal_EpwmAdcTrigStateType;
 
 typedef enum
 {
@@ -199,7 +203,6 @@ Mcal_EpwmStatusType Mcal_Epwm_SetCompareA(
 Mcal_EpwmStatusType Mcal_Epwm_InitDeadBand(
     const Mcal_EpwmDeadBandConfigType * config);
 
-
 /**
  * @brief Initializes the one-shot Trip Zone safety policy.
  *
@@ -214,12 +217,11 @@ Mcal_EpwmStatusType Mcal_Epwm_InitDeadBand(
 Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
     Mcal_EpwmIdType module);
 
-
 /**
  * @brief Enables an external source as a one-shot Trip Zone source.
  *
- * This version supports TZ1. The routing that drives TZ1 is configured
- * separately by the Input X-BAR MCAL driver.
+ * This version supports TZ1 and TZ4. The routing that drives the selected
+ * Trip Zone input is configured separately by the Input X-BAR MCAL driver.
  *
  * @param module Selected ePWM module.
  * @param source One-shot trip source.
@@ -265,12 +267,12 @@ Mcal_EpwmStatusType Mcal_Epwm_IsTripActive(
     Mcal_EpwmIdType module,
     uint16_t * active);
 
-
 /**
  * @brief Initializes an ePWM ADC start-of-conversion trigger.
  *
- * The selected SOCA or SOCB trigger is configured and enabled. The event
- * prescaler supports one trigger every 1 through 15 selected ePWM events.
+ * The selected SOCA or SOCB source and event prescaler are configured while
+ * the trigger output remains disabled. The event prescaler supports one
+ * trigger every 1 through 15 selected ePWM events.
  *
  * This initialization API is intended to be called while the ePWM time-base
  * clock is stopped.
@@ -281,6 +283,20 @@ Mcal_EpwmStatusType Mcal_Epwm_IsTripActive(
  */
 Mcal_EpwmStatusType Mcal_Epwm_InitAdcTrigger(
     const Mcal_EpwmAdcTrigConfigType * config);
+
+/**
+ * @brief Enables or disables an initialized ePWM ADC trigger.
+ *
+ * @param module Selected ePWM module.
+ * @param soc Selected SOCA or SOCB trigger.
+ * @param state Requested trigger state.
+ *
+ * @return Driver status.
+ */
+Mcal_EpwmStatusType Mcal_Epwm_SetAdcTriggerState(
+    Mcal_EpwmIdType module,
+    Mcal_EpwmAdcSocType soc,
+    Mcal_EpwmAdcTrigStateType state);
 
 /**
  * @brief Reads the selected ePWM ADC trigger event flag.

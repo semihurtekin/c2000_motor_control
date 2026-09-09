@@ -20,6 +20,7 @@
 #define MCAL_ADC_PRESCALE_DIV_4         (6U)
 #define MCAL_ADC_INT_PULSE_EOC          (1U)
 #define MCAL_ADC_POWER_UP               (1U)
+#define MCAL_ADC_POWER_UP_US            (500.0L)
 
 /*
  * ADC v0.1 uses the current 200 MHz SYSCLK platform configuration.
@@ -28,7 +29,6 @@
  */
 #define MCAL_ADC_ACQ_CYCLES_MIN         (15U)
 #define MCAL_ADC_ACQ_CYCLES_MAX         (512U)
-
 
 #define MCAL_ADC_INT_DISABLE            (0U)
 #define MCAL_ADC_INT_ENABLE             (1U)
@@ -70,7 +70,6 @@ static Mcal_AdcStatusType IsTriggerValid(
 static Mcal_AdcStatusType IsSocConfigValid(
     const Mcal_AdcSocConfigType * config);
 
-
 static Mcal_AdcStatusType IsIntValid(
     Mcal_AdcIntType adcInt);
 
@@ -81,6 +80,10 @@ static void ConfigureInterrupt(
     volatile struct ADC_REGS * adcRegs,
     Mcal_AdcIntType adcInt,
     Mcal_AdcSocType sourceEoc);
+
+static uint16_t ReadIntFlag(
+    volatile struct ADC_REGS * adcRegs,
+    Mcal_AdcIntType adcInt);
 
 static void ClearIntFlag(
     volatile struct ADC_REGS * adcRegs,
@@ -147,7 +150,6 @@ Mcal_AdcStatusType Mcal_Adc_Init(
 
         /*
          * Generate the ADC interrupt pulse at end-of-conversion timing.
-         * The interrupt itself is not enabled by ADC v0.1 yet.
          */
         adcRegs->ADCCTL1.bit.INTPULSEPOS =
             MCAL_ADC_INT_PULSE_EOC;
@@ -156,6 +158,12 @@ Mcal_AdcStatusType Mcal_Adc_Init(
             MCAL_ADC_POWER_UP;
 
         EDIS;
+
+        /*
+         * Complete the device-required ADC power-up settling time before
+         * reporting the module as initialized.
+         */
+        DELAY_US(MCAL_ADC_POWER_UP_US);
     }
     else
     {
@@ -242,7 +250,6 @@ Mcal_AdcStatusType Mcal_Adc_GetResult(
     return status;
 }
 
-
 Mcal_AdcStatusType Mcal_Adc_EnableInterrupt(
     const Mcal_AdcIntConfigType * config)
 {
@@ -263,6 +270,47 @@ Mcal_AdcStatusType Mcal_Adc_EnableInterrupt(
             config->sourceEoc);
 
         EDIS;
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    return status;
+}
+
+Mcal_AdcStatusType Mcal_Adc_IsIntFlagSet(
+    Mcal_AdcIdType adc,
+    Mcal_AdcIntType adcInt,
+    uint16_t * flagSet)
+{
+    Mcal_AdcStatusType status;
+    volatile struct ADC_REGS * adcRegs;
+
+    status = IsAdcValid(adc);
+
+    if(status == MCAL_ADC_STATUS_OK)
+    {
+        status = IsIntValid(adcInt);
+
+        if(status == MCAL_ADC_STATUS_OK)
+        {
+            if(flagSet != NULL)
+            {
+                adcRegs = GetAdcRegs(adc);
+                *flagSet = ReadIntFlag(
+                    adcRegs,
+                    adcInt);
+            }
+            else
+            {
+                status = MCAL_ADC_STATUS_INV_ARG;
+            }
+        }
+        else
+        {
+            /* Do nothing. */
+        }
     }
     else
     {
@@ -322,7 +370,6 @@ Mcal_AdcStatusType Mcal_Adc_IsIntOverflow(
             if(overflow != NULL)
             {
                 adcRegs = GetAdcRegs(adc);
-
                 *overflow = ReadIntOverflow(
                     adcRegs,
                     adcInt);
@@ -382,19 +429,25 @@ Mcal_AdcStatusType Mcal_Adc_SetSocPriority(
 {
     volatile struct ADC_REGS * adcRegs;
     Mcal_AdcStatusType status;
+
     status = IsAdcValid(adc);
 
     if(status == MCAL_ADC_STATUS_OK)
     {
-        if(highPrioritySocCount <= 16)
+        if(highPrioritySocCount <= 16U)
         {
             adcRegs = GetAdcRegs(adc);
-            adcRegs->ADCSOCPRICTL.bit.SOCPRIORITY = highPrioritySocCount;
+            adcRegs->ADCSOCPRICTL.bit.SOCPRIORITY =
+                highPrioritySocCount;
         }
-        else 
+        else
         {
-            status = MCAL_ADC_STATUS_INV_ARG;        
+            status = MCAL_ADC_STATUS_INV_ARG;
         }
+    }
+    else
+    {
+        /* Do nothing. */
     }
 
     return status;
@@ -492,7 +545,8 @@ static Mcal_AdcStatusType IsSocValid(
 {
     Mcal_AdcStatusType status;
 
-    if((uint16_t)soc <= (uint16_t)MCAL_ADC_SOC_15)
+    if((uint16_t)soc <=
+       (uint16_t)MCAL_ADC_SOC_15)
     {
         status = MCAL_ADC_STATUS_OK;
     }
@@ -604,14 +658,15 @@ static Mcal_AdcStatusType IsSocConfigValid(
     return status;
 }
 
-
 static Mcal_AdcStatusType IsIntValid(
     Mcal_AdcIntType adcInt)
 {
     Mcal_AdcStatusType status;
 
-    if(((uint16_t)adcInt >= (uint16_t)MCAL_ADC_INT_1) &&
-       ((uint16_t)adcInt <= (uint16_t)MCAL_ADC_INT_4))
+    if(((uint16_t)adcInt >=
+        (uint16_t)MCAL_ADC_INT_1) &&
+       ((uint16_t)adcInt <=
+        (uint16_t)MCAL_ADC_INT_4))
     {
         status = MCAL_ADC_STATUS_OK;
     }
@@ -729,6 +784,68 @@ static void ConfigureInterrupt(
             /* Do nothing. */
             break;
     }
+}
+
+static uint16_t ReadIntFlag(
+    volatile struct ADC_REGS * adcRegs,
+    Mcal_AdcIntType adcInt)
+{
+    uint16_t flagSet;
+
+    flagSet = MCAL_ADC_FLAG_RESET;
+
+    switch(adcInt)
+    {
+        case MCAL_ADC_INT_1:
+            if(adcRegs->ADCINTFLG.bit.ADCINT1 != 0U)
+            {
+                flagSet = MCAL_ADC_FLAG_SET;
+            }
+            else
+            {
+                /* Do nothing. */
+            }
+            break;
+
+        case MCAL_ADC_INT_2:
+            if(adcRegs->ADCINTFLG.bit.ADCINT2 != 0U)
+            {
+                flagSet = MCAL_ADC_FLAG_SET;
+            }
+            else
+            {
+                /* Do nothing. */
+            }
+            break;
+
+        case MCAL_ADC_INT_3:
+            if(adcRegs->ADCINTFLG.bit.ADCINT3 != 0U)
+            {
+                flagSet = MCAL_ADC_FLAG_SET;
+            }
+            else
+            {
+                /* Do nothing. */
+            }
+            break;
+
+        case MCAL_ADC_INT_4:
+            if(adcRegs->ADCINTFLG.bit.ADCINT4 != 0U)
+            {
+                flagSet = MCAL_ADC_FLAG_SET;
+            }
+            else
+            {
+                /* Do nothing. */
+            }
+            break;
+
+        default:
+            /* Do nothing. */
+            break;
+    }
+
+    return flagSet;
 }
 
 static void ClearIntFlag(
@@ -1082,3 +1199,4 @@ static uint16_t ReadResult(
 
     return result;
 }
+

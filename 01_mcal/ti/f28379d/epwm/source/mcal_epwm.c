@@ -32,20 +32,19 @@
 #define MCAL_EPWM_DB_FULL_CYCLE         (0U)
 #define MCAL_EPWM_DB_MAX_DELAY          (0x3FFFU)
 
-#define MCAL_EPWM_TZ_FORCE_LOW           (2U)
-#define MCAL_EPWM_TZ_INACTIVE            (0U)
-#define MCAL_EPWM_TZ_ACTIVE              (1U)
+#define MCAL_EPWM_TZ_FORCE_LOW          (2U)
+#define MCAL_EPWM_TZ_INACTIVE           (0U)
+#define MCAL_EPWM_TZ_ACTIVE             (1U)
 
-
-#define MCAL_EPWM_ADC_TRIG_DISABLE       (0U)
-#define MCAL_EPWM_ADC_TRIG_ENABLE        (1U)
-#define MCAL_EPWM_ADC_CMP_AB_SELECT      (0U)
-#define MCAL_EPWM_ADC_EXT_PRESCALE       (1U)
-#define MCAL_EPWM_ADC_PRESCALE_MIN       (1U)
-#define MCAL_EPWM_ADC_PRESCALE_MAX       (15U)
-#define MCAL_EPWM_ADC_FLAG_CLEAR         (1U)
-#define MCAL_EPWM_ADC_FLAG_RESET         (0U)
-#define MCAL_EPWM_ADC_FLAG_SET           (1U)
+#define MCAL_EPWM_ADC_TRIG_DISABLE      (0U)
+#define MCAL_EPWM_ADC_TRIG_ENABLE       (1U)
+#define MCAL_EPWM_ADC_CMP_AB_SELECT     (0U)
+#define MCAL_EPWM_ADC_EXT_PRESCALE      (1U)
+#define MCAL_EPWM_ADC_PRESCALE_MIN      (1U)
+#define MCAL_EPWM_ADC_PRESCALE_MAX      (15U)
+#define MCAL_EPWM_ADC_FLAG_CLEAR        (1U)
+#define MCAL_EPWM_ADC_FLAG_RESET        (0U)
+#define MCAL_EPWM_ADC_FLAG_SET          (1U)
 
 /*==============================================================================
  * Private Function Declarations
@@ -79,10 +78,8 @@ static Mcal_EpwmStatusType IsCompareValid(
     Mcal_EpwmIdType module,
     uint16_t compare);
 
-
 static Mcal_EpwmStatusType IsTripSourceValid(
     Mcal_EpwmTripSourceType source);
-
 
 static Mcal_EpwmStatusType IsAdcTrigConfigValid(
     const Mcal_EpwmAdcTrigConfigType * config);
@@ -92,6 +89,9 @@ static Mcal_EpwmStatusType IsAdcSocValid(
 
 static Mcal_EpwmStatusType IsAdcTrigSourceValid(
     Mcal_EpwmAdcTrigSourceType source);
+
+static Mcal_EpwmStatusType IsAdcTrigStateValid(
+    Mcal_EpwmAdcTrigStateType state);
 
 static Mcal_EpwmStatusType IsAdcPrescaleValid(
     uint16_t eventPrescale);
@@ -243,7 +243,6 @@ Mcal_EpwmStatusType Mcal_Epwm_InitDeadBand(
     return status;
 }
 
-
 Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
     Mcal_EpwmIdType module)
 {
@@ -268,8 +267,10 @@ Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
          * Any enabled basic Trip Zone event forces both complementary
          * outputs LOW.
          */
-        epwmRegs->TZCTL.bit.TZA = MCAL_EPWM_TZ_FORCE_LOW;
-        epwmRegs->TZCTL.bit.TZB = MCAL_EPWM_TZ_FORCE_LOW;
+        epwmRegs->TZCTL.bit.TZA =
+            MCAL_EPWM_TZ_FORCE_LOW;
+        epwmRegs->TZCTL.bit.TZB =
+            MCAL_EPWM_TZ_FORCE_LOW;
 
         /*
          * Start from a known, non-tripped state.
@@ -285,7 +286,6 @@ Mcal_EpwmStatusType Mcal_Epwm_InitTrip(
 
     return status;
 }
-
 
 Mcal_EpwmStatusType Mcal_Epwm_EnableOneShotTrip(
     Mcal_EpwmIdType module,
@@ -443,8 +443,8 @@ Mcal_EpwmStatusType Mcal_Epwm_InitAdcTrigger(
         if(config->soc == MCAL_EPWM_ADC_SOCA)
         {
             /*
-             * Keep SOCA disabled until its source and prescaler are fully
-             * configured.
+             * Keep SOCA disabled while its source and prescaler are
+             * configured. Runtime enabling is handled separately.
              */
             epwmRegs->ETSEL.bit.SOCAEN =
                 MCAL_EPWM_ADC_TRIG_DISABLE;
@@ -463,21 +463,14 @@ Mcal_EpwmStatusType Mcal_Epwm_InitAdcTrigger(
             epwmRegs->ETSOCPS.bit.SOCAPRD2 =
                 config->eventPrescale;
 
-            /*
-             * Remove any event indication left from an earlier
-             * configuration before enabling SOCA.
-             */
             epwmRegs->ETCLR.bit.SOCA =
                 MCAL_EPWM_ADC_FLAG_CLEAR;
-
-            epwmRegs->ETSEL.bit.SOCAEN =
-                MCAL_EPWM_ADC_TRIG_ENABLE;
         }
         else
         {
             /*
-             * Keep SOCB disabled until its source and prescaler are fully
-             * configured.
+             * Keep SOCB disabled while its source and prescaler are
+             * configured. Runtime enabling is handled separately.
              */
             epwmRegs->ETSEL.bit.SOCBEN =
                 MCAL_EPWM_ADC_TRIG_DISABLE;
@@ -493,9 +486,57 @@ Mcal_EpwmStatusType Mcal_Epwm_InitAdcTrigger(
 
             epwmRegs->ETCLR.bit.SOCB =
                 MCAL_EPWM_ADC_FLAG_CLEAR;
+        }
+    }
+    else
+    {
+        /* Do nothing. */
+    }
 
+    return status;
+}
+
+Mcal_EpwmStatusType Mcal_Epwm_SetAdcTriggerState(
+    Mcal_EpwmIdType module,
+    Mcal_EpwmAdcSocType soc,
+    Mcal_EpwmAdcTrigStateType state)
+{
+    Mcal_EpwmStatusType status;
+    volatile struct EPWM_REGS * epwmRegs;
+
+    status = IsModuleValid(module);
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        status = IsAdcSocValid(soc);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        status = IsAdcTrigStateValid(state);
+    }
+    else
+    {
+        /* Do nothing. */
+    }
+
+    if(status == MCAL_EPWM_STATUS_OK)
+    {
+        epwmRegs = GetEpwmRegs(module);
+
+        if(soc == MCAL_EPWM_ADC_SOCA)
+        {
+            epwmRegs->ETSEL.bit.SOCAEN =
+                (uint16_t)state;
+        }
+        else
+        {
             epwmRegs->ETSEL.bit.SOCBEN =
-                MCAL_EPWM_ADC_TRIG_ENABLE;
+                (uint16_t)state;
         }
     }
     else
@@ -530,22 +571,26 @@ Mcal_EpwmStatusType Mcal_Epwm_IsAdcTrigFlagSet(
                 {
                     if(epwmRegs->ETFLG.bit.SOCA != 0U)
                     {
-                        *flagSet = MCAL_EPWM_ADC_FLAG_SET;
+                        *flagSet =
+                            MCAL_EPWM_ADC_FLAG_SET;
                     }
                     else
                     {
-                        *flagSet = MCAL_EPWM_ADC_FLAG_RESET;
+                        *flagSet =
+                            MCAL_EPWM_ADC_FLAG_RESET;
                     }
                 }
                 else
                 {
                     if(epwmRegs->ETFLG.bit.SOCB != 0U)
                     {
-                        *flagSet = MCAL_EPWM_ADC_FLAG_SET;
+                        *flagSet =
+                            MCAL_EPWM_ADC_FLAG_SET;
                     }
                     else
                     {
-                        *flagSet = MCAL_EPWM_ADC_FLAG_RESET;
+                        *flagSet =
+                            MCAL_EPWM_ADC_FLAG_RESET;
                     }
                 }
             }
@@ -612,17 +657,19 @@ Mcal_EpwmStatusType Mcal_Epwm_SetTbClkSync(
     Mcal_EpwmTbClkSyncType state)
 {
     Mcal_EpwmStatusType status;
+
     status = IsTbClkSyncValid(state);
 
     if(status == MCAL_EPWM_STATUS_OK)
     {
         EALLOW;
-        CpuSysRegs.PCLKCR0.bit.TBCLKSYNC = (uint16_t)state;
+        CpuSysRegs.PCLKCR0.bit.TBCLKSYNC =
+            (uint16_t)state;
         EDIS;
     }
     else
     {
-        // Do nothing.
+        /* Do nothing. */
     }
 
     return status;
@@ -644,39 +691,51 @@ static volatile struct EPWM_REGS * GetEpwmRegs(
         case MCAL_EPWM_1:
             epwmRegs = &EPwm1Regs;
             break;
+
         case MCAL_EPWM_2:
             epwmRegs = &EPwm2Regs;
             break;
+
         case MCAL_EPWM_3:
             epwmRegs = &EPwm3Regs;
             break;
+
         case MCAL_EPWM_4:
             epwmRegs = &EPwm4Regs;
             break;
+
         case MCAL_EPWM_5:
             epwmRegs = &EPwm5Regs;
             break;
+
         case MCAL_EPWM_6:
             epwmRegs = &EPwm6Regs;
             break;
+
         case MCAL_EPWM_7:
             epwmRegs = &EPwm7Regs;
             break;
+
         case MCAL_EPWM_8:
             epwmRegs = &EPwm8Regs;
             break;
+
         case MCAL_EPWM_9:
             epwmRegs = &EPwm9Regs;
             break;
+
         case MCAL_EPWM_10:
             epwmRegs = &EPwm10Regs;
             break;
+
         case MCAL_EPWM_11:
             epwmRegs = &EPwm11Regs;
             break;
+
         case MCAL_EPWM_12:
             epwmRegs = &EPwm12Regs;
             break;
+
         default:
             /* Do nothing. */
             break;
@@ -784,8 +843,10 @@ static Mcal_EpwmStatusType IsDbConfigValid(
 
         if(status == MCAL_EPWM_STATUS_OK)
         {
-            if((config->risingDelay <= MCAL_EPWM_DB_MAX_DELAY) &&
-               (config->fallingDelay <= MCAL_EPWM_DB_MAX_DELAY))
+            if((config->risingDelay <=
+                MCAL_EPWM_DB_MAX_DELAY) &&
+               (config->fallingDelay <=
+                MCAL_EPWM_DB_MAX_DELAY))
             {
                 /* Do nothing. */
             }
@@ -812,8 +873,10 @@ static Mcal_EpwmStatusType IsModuleValid(
 {
     Mcal_EpwmStatusType status;
 
-    if(((uint16_t)module >= (uint16_t)MCAL_EPWM_1) &&
-       ((uint16_t)module <= (uint16_t)MCAL_EPWM_12))
+    if(((uint16_t)module >=
+        (uint16_t)MCAL_EPWM_1) &&
+       ((uint16_t)module <=
+        (uint16_t)MCAL_EPWM_12))
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -830,7 +893,8 @@ static Mcal_EpwmStatusType IsModeValid(
 {
     Mcal_EpwmStatusType status;
 
-    if((uint16_t)mode <= (uint16_t)MCAL_EPWM_COUNT_FREEZE)
+    if((uint16_t)mode <=
+       (uint16_t)MCAL_EPWM_COUNT_FREEZE)
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -847,7 +911,8 @@ static Mcal_EpwmStatusType IsClkDivValid(
 {
     Mcal_EpwmStatusType status;
 
-    if((uint16_t)clkDiv <= (uint16_t)MCAL_EPWM_CLKDIV_128)
+    if((uint16_t)clkDiv <=
+       (uint16_t)MCAL_EPWM_CLKDIV_128)
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -864,7 +929,8 @@ static Mcal_EpwmStatusType IsHsClkDivValid(
 {
     Mcal_EpwmStatusType status;
 
-    if((uint16_t)hsClkDiv <= (uint16_t)MCAL_EPWM_HSCLKDIV_14)
+    if((uint16_t)hsClkDiv <=
+       (uint16_t)MCAL_EPWM_HSCLKDIV_14)
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -875,14 +941,14 @@ static Mcal_EpwmStatusType IsHsClkDivValid(
 
     return status;
 }
-
 
 static Mcal_EpwmStatusType IsTripSourceValid(
     Mcal_EpwmTripSourceType source)
 {
     Mcal_EpwmStatusType status;
 
-    if((source == MCAL_EPWM_TRIP_SOURCE_TZ1) || (source == MCAL_EPWM_TRIP_SOURCE_TZ4))
+    if((source == MCAL_EPWM_TRIP_SOURCE_TZ1) ||
+       (source == MCAL_EPWM_TRIP_SOURCE_TZ4))
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -893,7 +959,6 @@ static Mcal_EpwmStatusType IsTripSourceValid(
 
     return status;
 }
-
 
 static Mcal_EpwmStatusType IsAdcTrigConfigValid(
     const Mcal_EpwmAdcTrigConfigType * config)
@@ -915,7 +980,9 @@ static Mcal_EpwmStatusType IsAdcTrigConfigValid(
 
         if(status == MCAL_EPWM_STATUS_OK)
         {
-            status = IsAdcTrigSourceValid(config->source);
+            status =
+                IsAdcTrigSourceValid(
+                    config->source);
         }
         else
         {
@@ -924,7 +991,9 @@ static Mcal_EpwmStatusType IsAdcTrigConfigValid(
 
         if(status == MCAL_EPWM_STATUS_OK)
         {
-            status = IsAdcPrescaleValid(config->eventPrescale);
+            status =
+                IsAdcPrescaleValid(
+                    config->eventPrescale);
         }
         else
         {
@@ -977,13 +1046,33 @@ static Mcal_EpwmStatusType IsAdcTrigSourceValid(
     return status;
 }
 
+static Mcal_EpwmStatusType IsAdcTrigStateValid(
+    Mcal_EpwmAdcTrigStateType state)
+{
+    Mcal_EpwmStatusType status;
+
+    if((state == MCAL_EPWM_ADC_TRIG_STATE_DISABLE) ||
+       (state == MCAL_EPWM_ADC_TRIG_STATE_ENABLE))
+    {
+        status = MCAL_EPWM_STATUS_OK;
+    }
+    else
+    {
+        status = MCAL_EPWM_STATUS_INV_ARG;
+    }
+
+    return status;
+}
+
 static Mcal_EpwmStatusType IsAdcPrescaleValid(
     uint16_t eventPrescale)
 {
     Mcal_EpwmStatusType status;
 
-    if((eventPrescale >= MCAL_EPWM_ADC_PRESCALE_MIN) &&
-       (eventPrescale <= MCAL_EPWM_ADC_PRESCALE_MAX))
+    if((eventPrescale >=
+        MCAL_EPWM_ADC_PRESCALE_MIN) &&
+       (eventPrescale <=
+        MCAL_EPWM_ADC_PRESCALE_MAX))
     {
         status = MCAL_EPWM_STATUS_OK;
     }
@@ -1027,16 +1116,17 @@ static Mcal_EpwmStatusType IsTbClkSyncValid(
     Mcal_EpwmTbClkSyncType state)
 {
     Mcal_EpwmStatusType status;
-    status = MCAL_EPWM_STATUS_INV_ARG;
 
-    if((state == MCAL_EPWM_TBCLK_SYNC_DISABLE) || (state == MCAL_EPWM_TBCLK_SYNC_ENABLE))
+    if((state == MCAL_EPWM_TBCLK_SYNC_DISABLE) ||
+       (state == MCAL_EPWM_TBCLK_SYNC_ENABLE))
     {
         status = MCAL_EPWM_STATUS_OK;
     }
     else
     {
-        // Do nothing.
+        status = MCAL_EPWM_STATUS_INV_ARG;
     }
 
     return status;
 }
+
