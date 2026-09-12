@@ -56,6 +56,13 @@ typedef enum
     PLATFORM_ADC_MODULE_D
 } Platform_AdcModuleType;
 
+typedef enum
+{
+    PLATFORM_SPI_MODULE_A = 0U,
+    PLATFORM_SPI_MODULE_B,
+    PLATFORM_SPI_MODULE_C
+} Platform_SpiModuleType;
+
 /*==============================================================================
  * Public Function Declarations
  *============================================================================*/
@@ -93,6 +100,23 @@ uint32_t Platform_ClockGetEpwmClkHz(void);
  */
 Platform_ClockStatusType Platform_ClockEnableAdc(
     Platform_AdcModuleType module);
+
+/**
+ * @brief Returns the configured SPI peripheral clock frequency.
+ *
+ * @return SPI peripheral clock frequency in Hz.
+ */
+uint32_t Platform_ClockGetLspClkHz(void);
+
+/**
+ * @brief Enables the peripheral clock for an SPI module.
+ *
+ * @param module SPI module whose peripheral clock shall be enabled.
+ *
+ * @return Clock status.
+ */
+Platform_ClockStatusType Platform_ClockEnableSpi(
+    Platform_SpiModuleType module);
 
 #ifdef __cplusplus
 }

@@ -24,6 +24,7 @@
 #define PLATFORM_CLOCK_LSPCLK_DIV_4        (2U)
 
 #define PLATFORM_CLOCK_EPWMCLK_HZ          (100000000UL)
+#define PLATFORM_CLOCK_LSPCLK_HZ           (50000000UL)
 
 /*==============================================================================
  * Private Types
@@ -210,6 +211,43 @@ Platform_ClockStatusType Platform_ClockEnableAdc(
 
         case PLATFORM_ADC_MODULE_D:
             CpuSysRegs.PCLKCR13.bit.ADC_D = 1U;
+            break;
+
+        default:
+            status = PLATFORM_CLOCK_STATUS_INVALID_PARAM;
+            break;
+    }
+
+    EDIS;
+
+    return status;
+}
+
+uint32_t Platform_ClockGetLspClkHz(void)
+{
+    return PLATFORM_CLOCK_LSPCLK_HZ;
+}
+
+Platform_ClockStatusType Platform_ClockEnableSpi(
+    Platform_SpiModuleType module)
+{
+    Platform_ClockStatusType status;
+    status = PLATFORM_CLOCK_STATUS_OK;
+
+    EALLOW;
+
+    switch(module)
+    {
+        case PLATFORM_SPI_MODULE_A:
+            CpuSysRegs.PCLKCR8.bit.SPI_A = 1U;
+            break;
+
+        case PLATFORM_SPI_MODULE_B:
+            CpuSysRegs.PCLKCR8.bit.SPI_B = 1U;
+            break;
+
+        case PLATFORM_SPI_MODULE_C:
+            CpuSysRegs.PCLKCR8.bit.SPI_C = 1U;
             break;
 
         default:
