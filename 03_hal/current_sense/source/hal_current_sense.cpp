@@ -47,7 +47,7 @@ Hal::CurrentSenseStatus CheckAdcOverflow(
     Mcal_AdcIdType adc,
     Mcal_AdcIntType adcInt);
 
-Hal::CurrentSenseStatus ClearCalibrationStatus(
+Hal::CurrentSenseStatus ClearSamplingStatus(
     const Bsp_CurrentSenseHwType& hwConfig);
 
 Hal::CurrentSenseStatus ReadCalibrationSample(
@@ -179,7 +179,18 @@ CurrentSenseStatus CurrentSense::Calibrate(void)
         }
         else
         {
-            status = ClearCalibrationStatus(*hwConfig);
+            // Turn off the sampling trigger before clearing campling status.
+            status = SetSamplingTriggerState(MCAL_EPWM_ADC_TRIG_STATE_DISABLE);
+
+            if(status == CURRENT_SENSE_STATUS_OK)
+            {
+                status = ClearSamplingStatus(*hwConfig);
+            }
+            else
+            {
+                // Do nothing
+            }
+            
         }
     }
 
@@ -243,7 +254,7 @@ CurrentSenseStatus CurrentSense::Calibrate(void)
         }
 
         cleanupStatus =
-            ClearCalibrationStatus(*hwConfig);
+            ClearSamplingStatus(*hwConfig);
 
         if(cleanupStatus != CURRENT_SENSE_STATUS_OK)
         {
@@ -309,6 +320,95 @@ CurrentSenseStatus CurrentSense::GetFastConfig(
             config.scaleV = scaleV_;
 
             status = CURRENT_SENSE_STATUS_OK;
+        }
+    }
+
+    return status;
+}
+
+CurrentSenseStatus CurrentSense::StartSampling(void)
+{
+    CurrentSenseStatus status;
+    status = CURRENT_SENSE_STATUS_OK;
+    
+    if(initialized_ == false)
+    {
+        status = CURRENT_SENSE_STATUS_NOT_INITIALIZED;
+    }
+    else if(calibrated_ == false)
+    {
+        status = CURRENT_SENSE_STATUS_NOT_CALIBRATED;
+    }
+    else 
+    {
+        // Do nothing.
+    }
+
+    if(status == CURRENT_SENSE_STATUS_OK)
+    {
+        const Bsp_CurrentSenseHwType * hwConfig;
+
+        hwConfig = Bsp_CurrentSense_GetHwConfig();
+
+        if(hwConfig == 0)
+        {
+            status = CURRENT_SENSE_STATUS_HW_ERROR;
+        }
+        else
+        {
+            status = ClearSamplingStatus(*hwConfig);
+        }
+
+        if(status == CURRENT_SENSE_STATUS_OK)
+        {
+            status = SetSamplingTriggerState(MCAL_EPWM_ADC_TRIG_STATE_ENABLE);
+        }
+        else
+        {
+            // Do nothing
+        }
+        
+    }
+    else 
+    {
+        // Do nothing.
+    }
+    
+    return status;
+}
+
+CurrentSenseStatus CurrentSense::StopSampling(void)
+{
+    CurrentSenseStatus status;
+    CurrentSenseStatus clearStatus;
+    const Bsp_CurrentSenseHwType * hwConfig;
+
+    if(initialized_ == false)
+    {
+        status = CURRENT_SENSE_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        status = SetSamplingTriggerState(MCAL_EPWM_ADC_TRIG_STATE_DISABLE);
+
+        hwConfig = Bsp_CurrentSense_GetHwConfig();
+
+        if(hwConfig == 0)
+        {
+            status = CURRENT_SENSE_STATUS_HW_ERROR;
+        }
+        else
+        {
+            clearStatus = ClearSamplingStatus(*hwConfig);
+
+            if(clearStatus != CURRENT_SENSE_STATUS_OK)
+            {
+                status = CURRENT_SENSE_STATUS_HW_ERROR;
+            }
+            else
+            {
+                /* Preserve trigger-disable status. */
+            }
         }
     }
 
@@ -645,7 +745,7 @@ Hal::CurrentSenseStatus CheckAdcOverflow(
     return status;
 }
 
-Hal::CurrentSenseStatus ClearCalibrationStatus(
+Hal::CurrentSenseStatus ClearSamplingStatus(
     const Bsp_CurrentSenseHwType& hwConfig)
 {
     Hal::CurrentSenseStatus status;
@@ -821,7 +921,7 @@ Hal::CurrentSenseStatus ReadCalibrationSample(
      * iteration waits for a new conversion event.
      */
     clearStatus =
-        ClearCalibrationStatus(
+        ClearSamplingStatus(
             hwConfig);
 
     if(clearStatus != Hal::CURRENT_SENSE_STATUS_OK)

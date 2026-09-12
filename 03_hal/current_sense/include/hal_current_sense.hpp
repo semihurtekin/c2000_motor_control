@@ -103,6 +103,20 @@ public:
     CurrentSenseStatus GetFastConfig(
         CurrentSenseFastConfigType& config) const;
 
+    /**
+     * @brief Starts the current sampling for the current control.
+     *
+     * @return Current-sense status.
+     */
+    CurrentSenseStatus StartSampling(void);
+
+    /**
+     * @brief Stops the current sampling for the current control.
+     *
+     * @return Current-sense status.
+     */
+    CurrentSenseStatus StopSampling(void);
+
 private:
     CurrentSense(const CurrentSense&);
     CurrentSense& operator=(const CurrentSense&);
