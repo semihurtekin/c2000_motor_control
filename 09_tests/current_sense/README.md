@@ -1,3 +1,6 @@
+## Test Result Summary
+After the test, I successfully validated that the current sense module calibration and measured phase current. But there was an issue during the test caused by the impedance difference with real application (inverter shunt resistor) and the test (potentiometer) explained below.
+
 ## Background
 
 During LAUNCHXL-F28379D CurrentSense bench validation, both ADC inputs were
@@ -8,6 +11,14 @@ measured ~1.50 V input was converted as approximately 1.26 V.
 
 Increasing the acquisition window to 100 SYSCLK cycles (500 ns) produced
 approximately 1.49 V and matched the externally measured signal.
+
+### 15-cycle acquisition result at 1.5V from potentiometer
+
+![15-cycle acquisition result](images/acq_15_cycles_failure.png)
+
+### 100-cycle acquisition result at 1.5V from potentiometer
+
+![100-cycle acquisition result](images/acq_100_cycles_result.png)
 
 ## Root Cause
 
