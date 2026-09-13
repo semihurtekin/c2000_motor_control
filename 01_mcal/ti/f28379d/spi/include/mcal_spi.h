@@ -17,10 +17,6 @@ extern "C" {
 #endif
 
 /*==============================================================================
- * Public Macros
- *============================================================================*/
-
-/*==============================================================================
  * Public Types
  *============================================================================*/
 
@@ -48,14 +44,17 @@ typedef enum
 typedef enum
 {
     MCAL_SPI_STATUS_OK = 0U,
-    MCAL_SPI_STATUS_INV_ID = 1U,
-    MCAL_SPI_STATUS_INV_ARG = 2U
+    MCAL_SPI_STATUS_INV_ID,
+    MCAL_SPI_STATUS_INV_ARG,
+    MCAL_SPI_STATUS_NOT_INITIALIZED,
+    MCAL_SPI_STATUS_TIMEOUT
 } Mcal_SpiStatusType;
 
 typedef struct
 {
     Mcal_SpiIdType module;
     Mcal_SpiModeType mode;
+    uint32_t sourceClockHz;
     uint32_t bitRateHz;
     Mcal_SpiDataWidthType dataWidth;
 } Mcal_SpiConfigType;
@@ -67,7 +66,10 @@ typedef struct
 /**
  * @brief Initializes an SPI module as controller.
  *
- * @param config SPI configuration.
+ * The peripheral clock shall already be enabled by the platform/BSP layer
+ * before this service is called.
+ *
+ * @param[in] config SPI configuration.
  *
  * @return Driver status.
  */
@@ -75,11 +77,15 @@ Mcal_SpiStatusType Mcal_Spi_Init(
     const Mcal_SpiConfigType * config);
 
 /**
- * @brief Performs one full-duplex SPI transfer.
+ * @brief Performs one blocking full-duplex SPI transfer.
  *
- * @param module Selected SPI module.
- * @param txData Data to transmit.
- * @param rxData Receives the simultaneously received data.
+ * The wait for TX FIFO space and RX data is bounded. If the SPI hardware does
+ * not make progress within the internal polling limit, the function returns
+ * MCAL_SPI_STATUS_TIMEOUT.
+ *
+ * @param[in]  module Selected SPI module.
+ * @param[in]  txData Data to transmit.
+ * @param[out] rxData Receives the simultaneously received data.
  *
  * @return Driver status.
  */
@@ -89,12 +95,12 @@ Mcal_SpiStatusType Mcal_Spi_TransferWord(
     uint16_t * rxData);
 
 /**
- * @brief Performs multiple full-duplex SPI transfers.
+ * @brief Performs multiple blocking full-duplex SPI transfers.
  *
- * @param module Selected SPI module.
- * @param txData Transmit buffer.
- * @param rxData Receive buffer.
- * @param length Number of configured-width words to transfer.
+ * @param[in]  module Selected SPI module.
+ * @param[in]  txData Transmit buffer.
+ * @param[out] rxData Receive buffer.
+ * @param[in]  length Number of configured-width words to transfer.
  *
  * @return Driver status.
  */

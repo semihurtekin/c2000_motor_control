@@ -16,40 +16,44 @@
  * Private Macros
  *============================================================================*/
 
-#define MCAL_SPI_LSPCLK_HZ               (50000000UL)
-#define MCAL_SPI_MAX_CLK_HZ              (12500000UL)
-#define MCAL_SPI_MIN_CLK_HZ              (390625UL)
+#define MCAL_SPI_MODULE_COUNT              (3U)
+#define MCAL_SPI_BRR_MIN                   (3U)
+#define MCAL_SPI_BRR_MAX                   (127U)
+#define MCAL_SPI_DIVISOR_MIN               (4UL)
+#define MCAL_SPI_DIVISOR_MAX               (128UL)
+#define MCAL_SPI_POLL_LIMIT                (100000UL)
 
-#define MCAL_SPI_FIFO_DEPTH              (16U)
-#define MCAL_SPI_FIFO_ENABLE             (1U)
-#define MCAL_SPI_FIFO_RESET_HOLD         (0U)
-#define MCAL_SPI_FIFO_RESET_RELEASE      (1U)
-#define MCAL_SPI_FIFO_INT_DISABLE        (0U)
-#define MCAL_SPI_FIFO_FLAG_CLEAR         (1U)
-#define MCAL_SPI_FIFO_OVERFLOW_CLEAR     (1U)
+#define MCAL_SPI_FIFO_DEPTH                (16U)
+#define MCAL_SPI_FIFO_ENABLE               (1U)
+#define MCAL_SPI_FIFO_RESET_HOLD           (0U)
+#define MCAL_SPI_FIFO_RESET_RELEASE        (1U)
+#define MCAL_SPI_FIFO_INT_DISABLE          (0U)
+#define MCAL_SPI_FIFO_FLAG_CLEAR           (1U)
+#define MCAL_SPI_FIFO_OVERFLOW_CLEAR       (1U)
 
-#define MCAL_SPI_SW_RESET_HOLD           (0U)
-#define MCAL_SPI_SW_RESET_RELEASE        (1U)
-#define MCAL_SPI_LOOPBACK_DISABLE        (0U)
-#define MCAL_SPI_HIGH_SPEED_DISABLE      (0U)
-#define MCAL_SPI_INT_DISABLE             (0U)
-#define MCAL_SPI_TRANSMIT_ENABLE         (1U)
-#define MCAL_SPI_CONTROLLER_MODE         (1U)
-#define MCAL_SPI_OVERRUN_INT_DISABLE     (0U)
-#define MCAL_SPI_THREE_WIRE_DISABLE      (0U)
+#define MCAL_SPI_SW_RESET_HOLD             (0U)
+#define MCAL_SPI_SW_RESET_RELEASE          (1U)
+#define MCAL_SPI_LOOPBACK_DISABLE          (0U)
+#define MCAL_SPI_HIGH_SPEED_DISABLE        (0U)
+#define MCAL_SPI_INT_DISABLE               (0U)
+#define MCAL_SPI_TRANSMIT_ENABLE           (1U)
+#define MCAL_SPI_CONTROLLER_MODE           (1U)
+#define MCAL_SPI_OVERRUN_INT_DISABLE       (0U)
+#define MCAL_SPI_THREE_WIRE_DISABLE        (0U)
 
-#define MCAL_SPI_MODE_CPOL_MASK          (2U)
-#define MCAL_SPI_MODE_CPHA_MASK          (1U)
-
-/*==============================================================================
- * Private Types
- *============================================================================*/
+#define MCAL_SPI_MODE_CPOL_MASK            (2U)
+#define MCAL_SPI_MODE_CPHA_MASK            (1U)
 
 /*==============================================================================
  * Private Variables
  *============================================================================*/
 
-static uint16_t DataWidthBits[3] = {0U, 0U, 0U};
+static uint16_t DataWidthBits[MCAL_SPI_MODULE_COUNT] =
+{
+    0U,
+    0U,
+    0U
+};
 
 /*==============================================================================
  * Private Function Declarations
@@ -67,14 +71,25 @@ static Mcal_SpiStatusType IsModeValid(
 static Mcal_SpiStatusType IsWidthValid(
     Mcal_SpiDataWidthType dataWidth);
 
+static Mcal_SpiStatusType IsBaudConfigValid(
+    uint32_t sourceClockHz,
+    uint32_t bitRateHz);
+
 static Mcal_SpiStatusType IsConfigValid(
     const Mcal_SpiConfigType * config);
 
-static uint16_t CalculateBaudDivider(
+static uint16_t CalculateBaudRegister(
+    uint32_t sourceClockHz,
     uint32_t bitRateHz);
 
-static void EnablePeripheralClock(
-    Mcal_SpiIdType module);
+static Mcal_SpiStatusType WaitForTxSpace(
+    volatile struct SPI_REGS * spiRegs);
+
+static Mcal_SpiStatusType WaitForRxData(
+    volatile struct SPI_REGS * spiRegs);
+
+static void ResetFifos(
+    volatile struct SPI_REGS * spiRegs);
 
 static uint16_t GetTxShift(
     Mcal_SpiIdType module);
@@ -91,7 +106,7 @@ Mcal_SpiStatusType Mcal_Spi_Init(
 {
     Mcal_SpiStatusType status;
     volatile struct SPI_REGS * spiRegs;
-    uint16_t baudDivider;
+    uint16_t baudRegister;
     uint16_t cpol;
     uint16_t cpha;
 
@@ -99,19 +114,21 @@ Mcal_SpiStatusType Mcal_Spi_Init(
 
     if(status == MCAL_SPI_STATUS_OK)
     {
-        EnablePeripheralClock(config->module);
         spiRegs = GetSpiRegs(config->module);
 
-        baudDivider = CalculateBaudDivider(
-            config->bitRateHz);
+        baudRegister =
+            CalculateBaudRegister(
+                config->sourceClockHz,
+                config->bitRateHz);
 
-        cpol = ((uint16_t)config->mode &
-                MCAL_SPI_MODE_CPOL_MASK) >> 1U;
+        cpol =
+            ((uint16_t)config->mode &
+             MCAL_SPI_MODE_CPOL_MASK) >> 1U;
 
-        cpha = (uint16_t)config->mode &
+        cpha =
+            (uint16_t)config->mode &
             MCAL_SPI_MODE_CPHA_MASK;
 
-        /* Keep SPI in reset while configuration is updated. */
         spiRegs->SPICCR.bit.SPISWRESET =
             MCAL_SPI_SW_RESET_HOLD;
 
@@ -136,7 +153,7 @@ Mcal_SpiStatusType Mcal_Spi_Init(
             MCAL_SPI_OVERRUN_INT_DISABLE;
 
         spiRegs->SPIBRR.bit.SPI_BIT_RATE =
-            baudDivider;
+            baudRegister;
 
         spiRegs->SPIPRI.bit.TRIWIRE =
             MCAL_SPI_THREE_WIRE_DISABLE;
@@ -149,10 +166,6 @@ Mcal_SpiStatusType Mcal_Spi_Init(
             MCAL_SPI_FIFO_INT_DISABLE;
         spiRegs->SPIFFTX.bit.TXFFINTCLR =
             MCAL_SPI_FIFO_FLAG_CLEAR;
-        spiRegs->SPIFFTX.bit.TXFIFO =
-            MCAL_SPI_FIFO_RESET_HOLD;
-        spiRegs->SPIFFTX.bit.TXFIFO =
-            MCAL_SPI_FIFO_RESET_RELEASE;
 
         spiRegs->SPIFFRX.bit.RXFFIENA =
             MCAL_SPI_FIFO_INT_DISABLE;
@@ -160,12 +173,10 @@ Mcal_SpiStatusType Mcal_Spi_Init(
             MCAL_SPI_FIFO_FLAG_CLEAR;
         spiRegs->SPIFFRX.bit.RXFFOVFCLR =
             MCAL_SPI_FIFO_OVERFLOW_CLEAR;
-        spiRegs->SPIFFRX.bit.RXFIFORESET =
-            MCAL_SPI_FIFO_RESET_HOLD;
-        spiRegs->SPIFFRX.bit.RXFIFORESET =
-            MCAL_SPI_FIFO_RESET_RELEASE;
 
         spiRegs->SPIFFCT.all = 0U;
+
+        ResetFifos(spiRegs);
 
         DataWidthBits[(uint16_t)config->module] =
             (uint16_t)config->dataWidth;
@@ -205,22 +216,29 @@ Mcal_SpiStatusType Mcal_Spi_TransferWord(
 
                 if((txData & (uint16_t)(~mask)) == 0U)
                 {
-                    while(spiRegs->SPIFFTX.bit.TXFFST >=
-                          MCAL_SPI_FIFO_DEPTH)
+                    status = WaitForTxSpace(spiRegs);
+
+                    if(status == MCAL_SPI_STATUS_OK)
                     {
-                        /* Wait for TX FIFO space. */
+                        spiRegs->SPITXBUF =
+                            (uint16_t)(txData << shift);
+
+                        status = WaitForRxData(spiRegs);
+
+                        if(status == MCAL_SPI_STATUS_OK)
+                        {
+                            *rxData =
+                                spiRegs->SPIRXBUF & mask;
+                        }
+                        else
+                        {
+                            ResetFifos(spiRegs);
+                        }
                     }
-
-                    spiRegs->SPITXBUF =
-                        (uint16_t)(txData << shift);
-
-                    while(spiRegs->SPIFFRX.bit.RXFFST == 0U)
+                    else
                     {
-                        /* Wait for full-duplex response. */
+                        ResetFifos(spiRegs);
                     }
-
-                    *rxData =
-                        spiRegs->SPIRXBUF & mask;
                 }
                 else
                 {
@@ -229,7 +247,7 @@ Mcal_SpiStatusType Mcal_Spi_TransferWord(
             }
             else
             {
-                status = MCAL_SPI_STATUS_INV_ARG;
+                status = MCAL_SPI_STATUS_NOT_INITIALIZED;
             }
         }
         else
@@ -258,20 +276,31 @@ Mcal_SpiStatusType Mcal_Spi_Transfer(
 
     if(status == MCAL_SPI_STATUS_OK)
     {
-        if(((txData != NULL) && (rxData != NULL)) ||
-           (length == 0U))
+        if(length == 0U)
+        {
+            /* Zero-length transfer is valid. */
+        }
+        else if((txData != NULL) && (rxData != NULL))
         {
             index = 0U;
 
             while((index < length) &&
                   (status == MCAL_SPI_STATUS_OK))
             {
-                status = Mcal_Spi_TransferWord(
-                    module,
-                    txData[index],
-                    &rxData[index]);
+                status =
+                    Mcal_Spi_TransferWord(
+                        module,
+                        txData[index],
+                        &rxData[index]);
 
-                index++;
+                if(status == MCAL_SPI_STATUS_OK)
+                {
+                    index++;
+                }
+                else
+                {
+                    /* Stop at the first failed word. */
+                }
             }
         }
         else
@@ -313,7 +342,7 @@ static volatile struct SPI_REGS * GetSpiRegs(
             break;
 
         default:
-            /* Do nothing. */
+            /* Invalid module. */
             break;
     }
 
@@ -377,6 +406,47 @@ static Mcal_SpiStatusType IsWidthValid(
     return status;
 }
 
+static Mcal_SpiStatusType IsBaudConfigValid(
+    uint32_t sourceClockHz,
+    uint32_t bitRateHz)
+{
+    Mcal_SpiStatusType status;
+    uint32_t divisor;
+
+    status = MCAL_SPI_STATUS_INV_ARG;
+
+    if((sourceClockHz != 0UL) &&
+       (bitRateHz != 0UL))
+    {
+        divisor = sourceClockHz / bitRateHz;
+
+        if((sourceClockHz % bitRateHz) != 0UL)
+        {
+            divisor++;
+        }
+        else
+        {
+            /* Exact integer divider. */
+        }
+
+        if((divisor >= MCAL_SPI_DIVISOR_MIN) &&
+           (divisor <= MCAL_SPI_DIVISOR_MAX))
+        {
+            status = MCAL_SPI_STATUS_OK;
+        }
+        else
+        {
+            /* Requested rate is outside the hardware divider range. */
+        }
+    }
+    else
+    {
+        /* Zero source clock or bit rate is invalid. */
+    }
+
+    return status;
+}
+
 static Mcal_SpiStatusType IsConfigValid(
     const Mcal_SpiConfigType * config)
 {
@@ -389,32 +459,27 @@ static Mcal_SpiStatusType IsConfigValid(
         if(status == MCAL_SPI_STATUS_OK)
         {
             status = IsModeValid(config->mode);
+        }
+        else
+        {
+            /* Do nothing. */
+        }
 
-            if(status == MCAL_SPI_STATUS_OK)
-            {
-                status = IsWidthValid(config->dataWidth);
+        if(status == MCAL_SPI_STATUS_OK)
+        {
+            status = IsWidthValid(config->dataWidth);
+        }
+        else
+        {
+            /* Do nothing. */
+        }
 
-                if(status == MCAL_SPI_STATUS_OK)
-                {
-                    if((config->bitRateHz >= MCAL_SPI_MIN_CLK_HZ) &&
-                       (config->bitRateHz <= MCAL_SPI_MAX_CLK_HZ))
-                    {
-                        /* Configuration is valid. */
-                    }
-                    else
-                    {
-                        status = MCAL_SPI_STATUS_INV_ARG;
-                    }
-                }
-                else
-                {
-                    /* Do nothing. */
-                }
-            }
-            else
-            {
-                /* Do nothing. */
-            }
+        if(status == MCAL_SPI_STATUS_OK)
+        {
+            status =
+                IsBaudConfigValid(
+                    config->sourceClockHz,
+                    config->bitRateHz);
         }
         else
         {
@@ -429,44 +494,114 @@ static Mcal_SpiStatusType IsConfigValid(
     return status;
 }
 
-static uint16_t CalculateBaudDivider(
+static uint16_t CalculateBaudRegister(
+    uint32_t sourceClockHz,
     uint32_t bitRateHz)
 {
-    uint32_t clockDivider;
+    uint32_t divisor;
+    uint16_t baudRegister;
 
-    /* Never generate an SCLK above the requested rate. Ceiling */
-    clockDivider =
-        (MCAL_SPI_LSPCLK_HZ + bitRateHz - 1UL) /
-        bitRateHz;
+    divisor = sourceClockHz / bitRateHz;
 
-    return (uint16_t)(clockDivider - 1UL);
-}
-
-static void EnablePeripheralClock(
-    Mcal_SpiIdType module)
-{
-    EALLOW;
-
-    switch(module)
+    if((sourceClockHz % bitRateHz) != 0UL)
     {
-        case MCAL_SPI_A:
-            CpuSysRegs.PCLKCR8.bit.SPI_A = 1U;
-            break;
-
-        case MCAL_SPI_B:
-            CpuSysRegs.PCLKCR8.bit.SPI_B = 1U;
-            break;
-
-        case MCAL_SPI_C:
-            CpuSysRegs.PCLKCR8.bit.SPI_C = 1U;
-            break;
-
-        default:
-            /* Do nothing. */
-            break;
+        divisor++;
+    }
+    else
+    {
+        /* Exact integer divider. */
     }
 
-    EDIS;
+    baudRegister = (uint16_t)(divisor - 1UL);
+
+    if(baudRegister < MCAL_SPI_BRR_MIN)
+    {
+        baudRegister = MCAL_SPI_BRR_MIN;
+    }
+    else if(baudRegister > MCAL_SPI_BRR_MAX)
+    {
+        baudRegister = MCAL_SPI_BRR_MAX;
+    }
+    else
+    {
+        /* Value is valid. */
+    }
+
+    return baudRegister;
+}
+
+static Mcal_SpiStatusType WaitForTxSpace(
+    volatile struct SPI_REGS * spiRegs)
+{
+    Mcal_SpiStatusType status;
+    uint32_t pollCount;
+
+    status = MCAL_SPI_STATUS_OK;
+    pollCount = MCAL_SPI_POLL_LIMIT;
+
+    while((spiRegs->SPIFFTX.bit.TXFFST >= MCAL_SPI_FIFO_DEPTH) && (pollCount > 0UL))
+    {
+        pollCount--;
+    }
+
+    if(spiRegs->SPIFFTX.bit.TXFFST >= MCAL_SPI_FIFO_DEPTH)
+    {
+        status = MCAL_SPI_STATUS_TIMEOUT;
+    }
+    else
+    {
+        /* TX FIFO has space. */
+    }
+
+    return status;
+}
+
+static Mcal_SpiStatusType WaitForRxData(
+    volatile struct SPI_REGS * spiRegs)
+{
+    Mcal_SpiStatusType status;
+    uint32_t pollCount;
+
+    status = MCAL_SPI_STATUS_OK;
+    pollCount = MCAL_SPI_POLL_LIMIT;
+
+    while((spiRegs->SPIFFRX.bit.RXFFST == 0U) &&
+          (pollCount > 0UL))
+    {
+        pollCount--;
+    }
+
+    if(spiRegs->SPIFFRX.bit.RXFFST == 0U)
+    {
+        status = MCAL_SPI_STATUS_TIMEOUT;
+    }
+    else
+    {
+        /* RX FIFO contains received data. */
+    }
+
+    return status;
+}
+
+static void ResetFifos(
+    volatile struct SPI_REGS * spiRegs)
+{
+    spiRegs->SPIFFTX.bit.TXFIFO =
+        MCAL_SPI_FIFO_RESET_HOLD;
+    spiRegs->SPIFFRX.bit.RXFIFORESET =
+        MCAL_SPI_FIFO_RESET_HOLD;
+
+    spiRegs->SPIFFTX.bit.TXFFINTCLR =
+        MCAL_SPI_FIFO_FLAG_CLEAR;
+    spiRegs->SPIFFRX.bit.RXFFINTCLR =
+        MCAL_SPI_FIFO_FLAG_CLEAR;
+    spiRegs->SPIFFRX.bit.RXFFOVFCLR =
+        MCAL_SPI_FIFO_OVERFLOW_CLEAR;
+
+    spiRegs->SPIFFTX.bit.TXFIFO =
+        MCAL_SPI_FIFO_RESET_RELEASE;
+    spiRegs->SPIFFRX.bit.RXFIFORESET =
+        MCAL_SPI_FIFO_RESET_RELEASE;
 }
 
 static uint16_t GetTxShift(
