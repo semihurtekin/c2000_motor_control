@@ -42,6 +42,9 @@
 #define DRV8305_VREG_VERIFY_MASK         (0x0300U)
 #define DRV8305_VDS_VERIFY_MASK          (0x00FFU)
 
+#define DRV8305_N_SCS_HIGH_DELAY_US      (1UL)           // Required 1us delay after nSCS HIGH according to the drv8305 datasheet.
+#define DRV8305_ENABLE_DELAY_US          (1000UL)        // Required 1ms delay after ENGATE HIGH according to the drv8305 datasheet.
+
 /*==============================================================================
  * Private Types
  *============================================================================*/
@@ -135,6 +138,15 @@ static Hal::Drv8305Status TransferFrame(
     uint16_t txFrame,
     uint16_t& rxFrame,
     const Bsp_Drv8305HwType * hwConfig);
+
+static Hal::Drv8305Status EnableGate(
+    const Bsp_Drv8305HwType * hwConfig);
+
+static Hal::Drv8305Status DisableGate(
+    const Bsp_Drv8305HwType * hwConfig);
+
+static Hal::Drv8305Status CheckFaultActive(
+    const Bsp_Drv8305HwType * hwConfig);
     
 }
 
@@ -212,6 +224,93 @@ Drv8305Status Drv8305::Init(
         {
             /* No hardware binding was established. */
         }
+    }
+
+    return status;
+}
+
+Drv8305Status Drv8305::Enable(void)
+{
+    Drv8305Status status;
+    Drv8305Status disableStatus;
+
+    if(state_ != DRV8305_STATE_CONFIGURED)
+    {
+        status = DRV8305_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        status = CheckFaultActive(hwConfig_);
+
+        if(status == DRV8305_STATUS_OK)
+        {
+            status = EnableGate(hwConfig_);
+        }
+        else if(status == DRV8305_STATUS_FAULT_ACTIVE)
+        {
+            /*
+             * A previous asynchronous fault may have left
+             * the MCU EN_GATE output HIGH. Explicitly force
+             * the driver input back to its safe state.
+             */
+            disableStatus = DisableGate(hwConfig_);
+
+            if(disableStatus != DRV8305_STATUS_OK)
+            {
+                status = DRV8305_STATUS_HW_ERROR;
+            }
+            else
+            {
+                /* Preserve FAULT_ACTIVE. */
+            }
+        }
+        else
+        {
+            /* Preserve the hardware read error. */
+        }
+
+        if(status == DRV8305_STATUS_OK)
+        {
+            status = CheckFaultActive(hwConfig_);
+
+            if(status != DRV8305_STATUS_OK)
+            {
+                disableStatus = DisableGate(hwConfig_);
+
+                if(disableStatus != DRV8305_STATUS_OK)
+                {
+                    status = DRV8305_STATUS_HW_ERROR;
+                }
+                else
+                {
+                    /* Preserve the original error. */
+                }
+            }
+            else
+            {
+                /* Gate driver enabled successfully. */
+            }
+        }
+        else
+        {
+            /* Do nothing. */
+        }
+    }
+
+    return status;
+}
+
+Drv8305Status Drv8305::Disable(void)
+{
+    Drv8305Status status;
+
+    if(state_ != DRV8305_STATE_CONFIGURED)
+    {
+        status = DRV8305_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        status = DisableGate(hwConfig_);
     }
 
     return status;
@@ -815,7 +914,7 @@ static Hal::Drv8305Status TransferFrame(
 
         if(gpioStatus == MCAL_GPIO_STATUS_OK)
         {
-            Platform_DelayUs(1U);     // According to the drv8305 datasheet, We should wait at least 500ns between 2 high nSCSs.
+            Platform_DelayUs(DRV8305_N_SCS_HIGH_DELAY_US);     // According to the drv8305 datasheet, We should wait at least 500ns between 2 high nSCSs.
 
             if(spiStatus == MCAL_SPI_STATUS_OK)
             {
@@ -841,7 +940,7 @@ static Hal::Drv8305Status TransferFrame(
 
         if(gpioStatus == MCAL_GPIO_STATUS_OK)
         {
-            Platform_DelayUs(1U);
+            Platform_DelayUs(DRV8305_N_SCS_HIGH_DELAY_US);
         }
         else
         {
@@ -849,6 +948,73 @@ static Hal::Drv8305Status TransferFrame(
         }
 
         status = Hal::DRV8305_STATUS_HW_ERROR;
+    }
+
+    return status;
+}
+
+static Hal::Drv8305Status EnableGate(
+    const Bsp_Drv8305HwType * hwConfig)
+{
+    Hal::Drv8305Status status;
+    Mcal_GpioStatusType gpioStatus;
+
+    gpioStatus = Mcal_Gpio_Write(hwConfig->enableGatePin, MCAL_GPIO_LEVEL_HIGH);
+
+    if(gpioStatus == MCAL_GPIO_STATUS_OK)
+    {
+        Platform_DelayUs(DRV8305_ENABLE_DELAY_US);
+        status = Hal::DRV8305_STATUS_OK;
+    }
+    else
+    {
+        status = Hal::DRV8305_STATUS_HW_ERROR;
+    }
+
+    return status;
+}
+
+static Hal::Drv8305Status DisableGate(
+    const Bsp_Drv8305HwType * hwConfig)
+{
+    Hal::Drv8305Status status;
+    Mcal_GpioStatusType gpioStatus;
+
+    gpioStatus = Mcal_Gpio_Write(hwConfig->enableGatePin, MCAL_GPIO_LEVEL_LOW);
+
+    if(gpioStatus != MCAL_GPIO_STATUS_OK)
+    {
+        status = Hal::DRV8305_STATUS_HW_ERROR;
+    }
+    else
+    {
+        status = Hal::DRV8305_STATUS_OK;
+    }
+
+    return status;
+}
+
+static Hal::Drv8305Status CheckFaultActive(
+    const Bsp_Drv8305HwType * hwConfig)
+{
+    Hal::Drv8305Status status;
+    Mcal_GpioStatusType gpioStatus;
+
+    Mcal_GpioLevelType nFaultLevel;
+    
+    gpioStatus = Mcal_Gpio_Read(hwConfig->faultPin, &nFaultLevel);
+
+    if(gpioStatus != MCAL_GPIO_STATUS_OK)
+    {
+        status = Hal::DRV8305_STATUS_HW_ERROR;
+    }
+    else if(nFaultLevel == MCAL_GPIO_LEVEL_LOW)
+    {
+        status = Hal::DRV8305_STATUS_FAULT_ACTIVE;
+    }
+    else    // nFaultLevel == MCAL_GPIO_LEVEL_LOW
+    {
+        status = Hal::DRV8305_STATUS_OK;
     }
 
     return status;

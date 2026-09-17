@@ -39,7 +39,8 @@ enum Drv8305Status
     DRV8305_STATUS_INVALID_ARG,
     DRV8305_STATUS_SPI_ERROR,
     DRV8305_STATUS_HW_ERROR,
-    DRV8305_STATUS_CONFIG_VERIFY_FAILED
+    DRV8305_STATUS_CONFIG_VERIFY_FAILED,
+    DRV8305_STATUS_FAULT_ACTIVE
 };
 
 enum Drv8305Address
@@ -240,7 +241,9 @@ public:
     Drv8305Status Init(
         const Drv8305Config& config);
 
+    Drv8305Status Enable(void);
 
+    Drv8305Status Disable(void);
 
 
 private:
