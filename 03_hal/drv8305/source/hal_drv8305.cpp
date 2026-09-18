@@ -147,6 +147,10 @@ static Hal::Drv8305Status DisableGate(
 
 static Hal::Drv8305Status CheckFaultActive(
     const Bsp_Drv8305HwType * hwConfig);
+
+static Hal::Drv8305Status FillFaultSnapshot(
+    Hal::Drv8305DiagnosticSnapshot& localSnapshot,
+    const Bsp_Drv8305HwType * hwConfig);
     
 }
 
@@ -311,6 +315,58 @@ Drv8305Status Drv8305::Disable(void)
     else
     {
         status = DisableGate(hwConfig_);
+    }
+
+    return status;
+}
+
+Drv8305Status Drv8305::GetFaultSnapshot(
+    Drv8305DiagnosticSnapshot& snapshot)
+{
+    Drv8305Status status;
+    Drv8305DiagnosticSnapshot localSnapshot;
+
+    localSnapshot.faultActive = false;
+    localSnapshot.warnings = DRV8305_WARNING_NONE;
+    localSnapshot.vdsFaults = DRV8305_VDS_FAULT_NONE;
+    localSnapshot.icFaults = DRV8305_IC_FAULT_NONE;
+    localSnapshot.vgsFaults = DRV8305_VGS_FAULT_NONE;
+
+    if(state_ != DRV8305_STATE_CONFIGURED)
+    {
+        status = DRV8305_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        status = CheckFaultActive(hwConfig_);
+
+        if(status == DRV8305_STATUS_OK)
+        {
+            /*
+             * nFAULT is inactive. Commit an empty snapshot so
+             * previously reported fault information is cleared.
+             */
+            snapshot = localSnapshot;
+        }
+        else if(status == DRV8305_STATUS_FAULT_ACTIVE)
+        {
+            localSnapshot.faultActive = true;
+
+            status = FillFaultSnapshot(localSnapshot, hwConfig_);
+
+            if(status == DRV8305_STATUS_OK)
+            {
+                snapshot = localSnapshot;
+            }
+            else
+            {
+                /* Preserve the diagnostic read error. */
+            }
+        }
+        else
+        {
+            /* Preserve the nFAULT GPIO read error. */
+        }
     }
 
     return status;
@@ -1012,9 +1068,47 @@ static Hal::Drv8305Status CheckFaultActive(
     {
         status = Hal::DRV8305_STATUS_FAULT_ACTIVE;
     }
-    else    // nFaultLevel == MCAL_GPIO_LEVEL_LOW
+    else     /* nFAULT is HIGH, no fault is active. */
     {
         status = Hal::DRV8305_STATUS_OK;
+    }
+
+    return status;
+}
+
+static Hal::Drv8305Status FillFaultSnapshot(
+    Hal::Drv8305DiagnosticSnapshot& localSnapshot,
+    const Bsp_Drv8305HwType * hwConfig)
+{
+    Hal::Drv8305Status status;
+
+    status = ReadRegister(Hal::DRV8305_ADDR_WARNINGS_WD_RESET, localSnapshot.warnings, hwConfig);
+    
+    if(status == Hal::DRV8305_STATUS_OK)
+    {
+        status = ReadRegister(Hal::DRV8305_ADDR_OV_VDS_FAULTS, localSnapshot.vdsFaults, hwConfig);
+    }
+    else 
+    {
+        // Do nothing.
+    }
+
+    if(status == Hal::DRV8305_STATUS_OK)
+    {
+        status = ReadRegister(Hal::DRV8305_ADDR_IC_FAULTS, localSnapshot.icFaults, hwConfig);
+    }
+    else 
+    {
+        // Do nothing.
+    }
+
+    if(status == Hal::DRV8305_STATUS_OK)
+    {
+        status = ReadRegister(Hal::DRV8305_ADDR_VGS_FAULTS, localSnapshot.vgsFaults, hwConfig);
+    }
+    else 
+    {
+        // Do nothing.
     }
 
     return status;

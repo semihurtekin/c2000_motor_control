@@ -191,6 +191,60 @@ enum Drv8305VdsMode
     DRV8305_VDS_MODE_DISABLED = 0x2U
 };
 
+enum Drv8305WarningMask
+{
+    DRV8305_WARNING_NONE          = 0x0000U,
+    DRV8305_WARNING_OTW           = 0x0001U,
+    DRV8305_WARNING_TEMP_FLAG3    = 0x0002U,
+    DRV8305_WARNING_TEMP_FLAG2    = 0x0004U,
+    DRV8305_WARNING_TEMP_FLAG1    = 0x0008U,
+    DRV8305_WARNING_VCPH_UVFL     = 0x0010U,
+    DRV8305_WARNING_VDS_STATUS    = 0x0020U,
+    DRV8305_WARNING_PVDD_OVFL     = 0x0040U,
+    DRV8305_WARNING_PVDD_UVFL     = 0x0080U,
+    DRV8305_WARNING_TEMP_FLAG4    = 0x0100U,
+    DRV8305_WARNING_FAULT         = 0x0400U
+};
+
+enum Drv8305VdsFaultMask
+{
+    DRV8305_VDS_FAULT_NONE        = 0x0000U,
+    DRV8305_VDS_FAULT_SNS_A_OCP   = 0x0001U,
+    DRV8305_VDS_FAULT_SNS_B_OCP   = 0x0002U,
+    DRV8305_VDS_FAULT_SNS_C_OCP   = 0x0004U,
+    DRV8305_VDS_FAULT_LS_C        = 0x0020U,
+    DRV8305_VDS_FAULT_HS_C        = 0x0040U,
+    DRV8305_VDS_FAULT_LS_B        = 0x0080U,
+    DRV8305_VDS_FAULT_HS_B        = 0x0100U,
+    DRV8305_VDS_FAULT_LS_A        = 0x0200U,
+    DRV8305_VDS_FAULT_HS_A        = 0x0400U
+};
+
+enum Drv8305IcFaultMask
+{
+    DRV8305_IC_FAULT_NONE          = 0x0000U,
+    DRV8305_IC_FAULT_VCPH_OVLO_ABS = 0x0001U,
+    DRV8305_IC_FAULT_VCPH_OVLO     = 0x0002U,
+    DRV8305_IC_FAULT_VCPH_UVLO2    = 0x0004U,
+    DRV8305_IC_FAULT_VCP_LSD_UVLO2 = 0x0010U,
+    DRV8305_IC_FAULT_AVDD_UVLO     = 0x0020U,
+    DRV8305_IC_FAULT_VREG_UV       = 0x0040U,
+    DRV8305_IC_FAULT_OTSD          = 0x0100U,
+    DRV8305_IC_FAULT_WD_FAULT      = 0x0200U,
+    DRV8305_IC_FAULT_PVDD_UVLO2    = 0x0400U
+};
+
+enum Drv8305VgsFaultMask
+{
+    DRV8305_VGS_FAULT_NONE         = 0x0000U,
+    DRV8305_VGS_FAULT_VGS_LC       = 0x0020U,
+    DRV8305_VGS_FAULT_VGS_HC       = 0x0040U,
+    DRV8305_VGS_FAULT_VGS_LB       = 0x0080U,
+    DRV8305_VGS_FAULT_VGS_HB       = 0x0100U,
+    DRV8305_VGS_FAULT_VGS_LA       = 0x0200U,
+    DRV8305_VGS_FAULT_VGS_HA       = 0x0400U
+};
+
 struct Drv8305GateDriveConfig
 {
     Drv8305GateSourceCurrent hsSourceCurrent;
@@ -227,6 +281,14 @@ struct Drv8305Config
     Drv8305ProtectionConfig protection;
 };
 
+struct Drv8305DiagnosticSnapshot
+{
+    bool faultActive;
+    uint16_t warnings;
+    uint16_t vdsFaults;
+    uint16_t icFaults;
+    uint16_t vgsFaults;
+};
 
 /*==============================================================================
  * Public Classes
@@ -238,20 +300,45 @@ public:
 
     Drv8305();
 
+    /**
+     * @brief Initializes the DRV8305 driver.
+     *
+     * @param[in] config Init configuration.
+     *
+     * @return Driver status.
+     */
     Drv8305Status Init(
         const Drv8305Config& config);
 
+    /**
+     * @brief Enables DRV ENGATE and waits 1ms as requested by datasheet.
+     *
+     * @return Driver status.
+     */
     Drv8305Status Enable(void);
 
+    /**
+     * @brief Disables DRV ENGATE 
+     *
+     * @return Driver status.
+     */
     Drv8305Status Disable(void);
 
+    /**
+     * @brief Reads a fault diagnostic snapshot.
+     *
+     * @param[out] snapshot Receives the diagnostic register snapshot.
+     *
+     * @return Driver status.
+     */
+    Drv8305Status GetFaultSnapshot(
+        Drv8305DiagnosticSnapshot& snapshot);
 
 private:
- 
+
     Drv8305(const Drv8305&);
     Drv8305& operator=(const Drv8305&);
 
-    
     Drv8305State state_;
     const Bsp_Drv8305HwType * hwConfig_;
     Drv8305Config config_;
