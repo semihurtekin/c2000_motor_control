@@ -42,10 +42,16 @@
 #define DRV8305_VREG_VERIFY_MASK         (0x0300U)
 #define DRV8305_VDS_VERIFY_MASK          (0x00FFU)
 
-#define DRV8305_N_SCS_HIGH_DELAY_US      (1UL)           // Required 1us delay after nSCS HIGH according to the drv8305 datasheet.
-#define DRV8305_ENABLE_DELAY_US          (1000UL)        // Required 1ms delay after ENGATE HIGH according to the drv8305 datasheet.
+/*
+ * Use 1 us to satisfy the minimum 500 ns nSCS high time between
+ * consecutive SPI frames.
+ */
+#define DRV8305_N_SCS_HIGH_DELAY_US      (1UL)
 
+#define DRV8305_ENABLE_DELAY_US          (1000UL)
 #define DRV8305_CLR_FLTS_MASK            (0x0002U)
+
+#define DRV8305_CLR_FLTS_POLL_LIMIT      (100UL)
 
 /*==============================================================================
  * Private Types
@@ -147,7 +153,14 @@ static Hal::Drv8305Status EnableGate(
 static Hal::Drv8305Status DisableGate(
     const Bsp_Drv8305HwType * hwConfig);
 
-static Hal::Drv8305Status CheckFaultActive(
+static Hal::Drv8305Status ReadFaultPin(
+    const Bsp_Drv8305HwType * hwConfig,
+    Mcal_GpioLevelType& nFaultLevel);
+
+static Hal::Drv8305Status CheckLatchedFaultActive(
+    const Bsp_Drv8305HwType * hwConfig);
+
+static Hal::Drv8305Status WaitForFaultClear(
     const Bsp_Drv8305HwType * hwConfig);
 
 static Hal::Drv8305Status FillFaultSnapshot(
@@ -246,7 +259,7 @@ Drv8305Status Drv8305::Enable(void)
     }
     else
     {
-        status = CheckFaultActive(hwConfig_);
+        status = CheckLatchedFaultActive(hwConfig_);
 
         if(status == DRV8305_STATUS_OK)
         {
@@ -254,11 +267,6 @@ Drv8305Status Drv8305::Enable(void)
         }
         else if(status == DRV8305_STATUS_FAULT_ACTIVE)
         {
-            /*
-             * A previous asynchronous fault may have left
-             * the MCU EN_GATE output HIGH. Explicitly force
-             * the driver input back to its safe state.
-             */
             disableStatus = DisableGate(hwConfig_);
 
             if(disableStatus != DRV8305_STATUS_OK)
@@ -277,7 +285,7 @@ Drv8305Status Drv8305::Enable(void)
 
         if(status == DRV8305_STATUS_OK)
         {
-            status = CheckFaultActive(hwConfig_);
+            status = CheckLatchedFaultActive(hwConfig_);
 
             if(status != DRV8305_STATUS_OK)
             {
@@ -327,12 +335,14 @@ Drv8305Status Drv8305::GetFaultSnapshot(
 {
     Drv8305Status status;
     Drv8305DiagnosticSnapshot localSnapshot;
+    Mcal_GpioLevelType nFaultLevel;
 
     localSnapshot.faultActive = false;
     localSnapshot.warnings = DRV8305_WARNING_NONE;
     localSnapshot.vdsFaults = DRV8305_VDS_FAULT_NONE;
     localSnapshot.icFaults = DRV8305_IC_FAULT_NONE;
     localSnapshot.vgsFaults = DRV8305_VGS_FAULT_NONE;
+    nFaultLevel = MCAL_GPIO_LEVEL_HIGH;
 
     if(state_ != DRV8305_STATE_CONFIGURED)
     {
@@ -340,29 +350,39 @@ Drv8305Status Drv8305::GetFaultSnapshot(
     }
     else
     {
-        status = CheckFaultActive(hwConfig_);
+        status = ReadFaultPin(hwConfig_, nFaultLevel);
 
         if(status == DRV8305_STATUS_OK)
         {
-            /*
-             * nFAULT is inactive. Commit an empty snapshot so
-             * previously reported fault information is cleared.
-             */
-            snapshot = localSnapshot;
-        }
-        else if(status == DRV8305_STATUS_FAULT_ACTIVE)
-        {
-            localSnapshot.faultActive = true;
-
-            status = FillFaultSnapshot(localSnapshot, hwConfig_);
-
-            if(status == DRV8305_STATUS_OK)
+            if(nFaultLevel == MCAL_GPIO_LEVEL_HIGH)
             {
                 snapshot = localSnapshot;
             }
             else
             {
-                /* Preserve the diagnostic read error. */
+                status =
+                    FillFaultSnapshot(
+                        localSnapshot,
+                        hwConfig_);
+
+                if(status == DRV8305_STATUS_OK)
+                {
+                    if((localSnapshot.warnings &
+                        (uint16_t)DRV8305_WARNING_FAULT) != 0U)
+                    {
+                        localSnapshot.faultActive = true;
+                    }
+                    else
+                    {
+                        localSnapshot.faultActive = false;
+                    }
+
+                    snapshot = localSnapshot;
+                }
+                else
+                {
+                    /* Preserve the diagnostic read error. */
+                }
             }
         }
         else
@@ -377,6 +397,7 @@ Drv8305Status Drv8305::GetFaultSnapshot(
 Drv8305Status Drv8305::ClearFaults(void)
 {
     Drv8305Status status;
+    Drv8305Status disableStatus;
     uint16_t operationReg;
 
     operationReg = 0U;
@@ -387,24 +408,24 @@ Drv8305Status Drv8305::ClearFaults(void)
     }
     else
     {
-        status = DisableGate(hwConfig_);
-
-        if(status == DRV8305_STATUS_OK)
-        {
-            status = CheckFaultActive(hwConfig_);
-        }
-        else
-        {
-            /* Do nothing. */
-        }
+        status = CheckLatchedFaultActive(hwConfig_);
 
         if(status == DRV8305_STATUS_FAULT_ACTIVE)
         {
-            status =
-                ReadRegister(
-                    DRV8305_ADDR_IC_OPERATION,
-                    operationReg,
-                    hwConfig_);
+            /*
+             * Fault recovery must not re-energize the power stage.
+             * Force EN_GATE LOW before issuing the clear command.
+             */
+            status = DisableGate(hwConfig_);
+
+            if(status == DRV8305_STATUS_OK)
+            {
+                status = ReadRegister( DRV8305_ADDR_IC_OPERATION, operationReg, hwConfig_);
+            }
+            else
+            {
+                /* Do nothing. */
+            }
 
             if(status == DRV8305_STATUS_OK)
             {
@@ -419,16 +440,30 @@ Drv8305Status Drv8305::ClearFaults(void)
 
             if(status == DRV8305_STATUS_OK)
             {
-                status = CheckFaultActive(hwConfig_);
+                // Wait until the fault clear bit resets by hardware. 
+                status = WaitForFaultClear(hwConfig_);
             }
             else
             {
                 /* Do nothing. */
             }
         }
+        else if(status == DRV8305_STATUS_OK)
+        {
+            /* No latched fault is active; nothing to clear. */
+        }
         else
         {
-        
+            disableStatus = DisableGate(hwConfig_);
+
+            if(disableStatus != DRV8305_STATUS_OK)
+            {
+                status = DRV8305_STATUS_HW_ERROR;
+            }
+            else
+            {
+                /* Preserve the original read error. */
+            }
         }
     }
 
@@ -964,7 +999,7 @@ static Hal::Drv8305Status ReadRegister(
     }
     else
     {
-        // Do nothing.
+        /* Do nothing. */
     }
 
     return status;
@@ -1028,7 +1063,7 @@ static Hal::Drv8305Status TransferFrame(
 
         if(gpioStatus == MCAL_GPIO_STATUS_OK)
         {
-            Platform_DelayUs(DRV8305_N_SCS_HIGH_DELAY_US);     // According to the drv8305 datasheet, We should wait at least 500ns between 2 high nSCSs.
+            Platform_DelayUs(DRV8305_N_SCS_HIGH_DELAY_US);
 
             if(spiStatus == MCAL_SPI_STATUS_OK)
             {
@@ -1108,27 +1143,150 @@ static Hal::Drv8305Status DisableGate(
     return status;
 }
 
-static Hal::Drv8305Status CheckFaultActive(
-    const Bsp_Drv8305HwType * hwConfig)
+static Hal::Drv8305Status ReadFaultPin(
+    const Bsp_Drv8305HwType * hwConfig,
+    Mcal_GpioLevelType& nFaultLevel)
 {
     Hal::Drv8305Status status;
     Mcal_GpioStatusType gpioStatus;
 
-    Mcal_GpioLevelType nFaultLevel;
-    
-    gpioStatus = Mcal_Gpio_Read(hwConfig->faultPin, &nFaultLevel);
+    gpioStatus =
+        Mcal_Gpio_Read(
+            hwConfig->faultPin,
+            &nFaultLevel);
 
-    if(gpioStatus != MCAL_GPIO_STATUS_OK)
+    if(gpioStatus == MCAL_GPIO_STATUS_OK)
+    {
+        status = Hal::DRV8305_STATUS_OK;
+    }
+    else
     {
         status = Hal::DRV8305_STATUS_HW_ERROR;
     }
-    else if(nFaultLevel == MCAL_GPIO_LEVEL_LOW)
+
+    return status;
+}
+
+static Hal::Drv8305Status CheckLatchedFaultActive(
+    const Bsp_Drv8305HwType * hwConfig)
+{
+    Hal::Drv8305Status status;
+    Mcal_GpioLevelType nFaultLevel;
+    uint16_t warnings;
+
+    nFaultLevel = MCAL_GPIO_LEVEL_HIGH;
+    warnings = 0U;
+
+    status =
+        ReadFaultPin(
+            hwConfig,
+            nFaultLevel);
+
+    if(status == Hal::DRV8305_STATUS_OK)
     {
-        status = Hal::DRV8305_STATUS_FAULT_ACTIVE;
+        if(nFaultLevel == MCAL_GPIO_LEVEL_LOW)
+        {
+            /*
+             * nFAULT can also pulse LOW for warning/report-only events.
+             * Register 0x1 FAULT distinguishes a latched fault.
+             */
+            status =
+                ReadRegister(
+                    Hal::DRV8305_ADDR_WARNINGS_WD_RESET,
+                    warnings,
+                    hwConfig);
+
+            if(status == Hal::DRV8305_STATUS_OK)
+            {
+                if((warnings &
+                    (uint16_t)Hal::DRV8305_WARNING_FAULT) != 0U)
+                {
+                    status = Hal::DRV8305_STATUS_FAULT_ACTIVE;
+                }
+                else
+                {
+                    status = Hal::DRV8305_STATUS_OK;
+                }
+            }
+            else
+            {
+                /* Preserve the SPI read error. */
+            }
+        }
+        else
+        {
+            /* nFAULT is HIGH, therefore no latched fault is active. */
+        }
     }
-    else     /* nFAULT is HIGH, no fault is active. */
+    else
     {
-        status = Hal::DRV8305_STATUS_OK;
+        /* Preserve the nFAULT GPIO read error. */
+    }
+
+    return status;
+}
+
+static Hal::Drv8305Status WaitForFaultClear(
+    const Bsp_Drv8305HwType * hwConfig)
+{
+    Hal::Drv8305Status status;
+    uint16_t operationReg;
+    uint16_t warnings;
+    uint32_t pollCount;
+
+    status = Hal::DRV8305_STATUS_OK;
+    operationReg = DRV8305_CLR_FLTS_MASK;
+    warnings = 0U;
+    pollCount = 0UL;
+
+    while((status == Hal::DRV8305_STATUS_OK) &&
+          ((operationReg & DRV8305_CLR_FLTS_MASK) != 0U) &&
+          (pollCount < DRV8305_CLR_FLTS_POLL_LIMIT))
+    {
+        status = ReadRegister(Hal::DRV8305_ADDR_IC_OPERATION, operationReg, hwConfig);
+
+        pollCount++;
+    }
+
+    if(status == Hal::DRV8305_STATUS_OK)
+    {
+        if((operationReg & DRV8305_CLR_FLTS_MASK) != 0U)
+        {
+            /*
+             * CLR_FLTS did not self-clear within the bounded software
+             * policy. Treat recovery as unsuccessful.
+             */
+            status = Hal::DRV8305_STATUS_FAULT_ACTIVE;
+        }
+        else
+        {
+            status =
+                ReadRegister(
+                    Hal::DRV8305_ADDR_WARNINGS_WD_RESET,
+                    warnings,
+                    hwConfig);
+
+            if(status == Hal::DRV8305_STATUS_OK)
+            {
+                if((warnings &
+                    (uint16_t)Hal::DRV8305_WARNING_FAULT) != 0U)
+                {
+                    status = Hal::DRV8305_STATUS_FAULT_ACTIVE;
+                }
+                else
+                {
+                    /* Latched fault recovery verified. */
+                }
+            }
+            else
+            {
+                /* Preserve the SPI read error. */
+            }
+        }
+    }
+    else
+    {
+        /* Preserve the SPI read error. */
     }
 
     return status;
@@ -1148,7 +1306,7 @@ static Hal::Drv8305Status FillFaultSnapshot(
     }
     else 
     {
-        // Do nothing.
+        /* Do nothing. */
     }
 
     if(status == Hal::DRV8305_STATUS_OK)
@@ -1157,7 +1315,7 @@ static Hal::Drv8305Status FillFaultSnapshot(
     }
     else 
     {
-        // Do nothing.
+        /* Do nothing. */
     }
 
     if(status == Hal::DRV8305_STATUS_OK)
@@ -1166,7 +1324,7 @@ static Hal::Drv8305Status FillFaultSnapshot(
     }
     else 
     {
-        // Do nothing.
+        /* Do nothing. */
     }
 
     return status;
