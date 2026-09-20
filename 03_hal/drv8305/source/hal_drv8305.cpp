@@ -45,6 +45,8 @@
 #define DRV8305_N_SCS_HIGH_DELAY_US      (1UL)           // Required 1us delay after nSCS HIGH according to the drv8305 datasheet.
 #define DRV8305_ENABLE_DELAY_US          (1000UL)        // Required 1ms delay after ENGATE HIGH according to the drv8305 datasheet.
 
+#define DRV8305_CLR_FLTS_MASK            (0x0002U)
+
 /*==============================================================================
  * Private Types
  *============================================================================*/
@@ -372,6 +374,67 @@ Drv8305Status Drv8305::GetFaultSnapshot(
     return status;
 }
 
+Drv8305Status Drv8305::ClearFaults(void)
+{
+    Drv8305Status status;
+    uint16_t operationReg;
+
+    operationReg = 0U;
+
+    if(state_ != DRV8305_STATE_CONFIGURED)
+    {
+        status = DRV8305_STATUS_NOT_INITIALIZED;
+    }
+    else
+    {
+        status = DisableGate(hwConfig_);
+
+        if(status == DRV8305_STATUS_OK)
+        {
+            status = CheckFaultActive(hwConfig_);
+        }
+        else
+        {
+            /* Do nothing. */
+        }
+
+        if(status == DRV8305_STATUS_FAULT_ACTIVE)
+        {
+            status =
+                ReadRegister(
+                    DRV8305_ADDR_IC_OPERATION,
+                    operationReg,
+                    hwConfig_);
+
+            if(status == DRV8305_STATUS_OK)
+            {
+                operationReg |= DRV8305_CLR_FLTS_MASK;
+
+                status = WriteRegister(DRV8305_ADDR_IC_OPERATION, operationReg, hwConfig_);
+            }
+            else
+            {
+                /* Do nothing. */
+            }
+
+            if(status == DRV8305_STATUS_OK)
+            {
+                status = CheckFaultActive(hwConfig_);
+            }
+            else
+            {
+                /* Do nothing. */
+            }
+        }
+        else
+        {
+        
+        }
+    }
+
+    return status;
+}
+
 } /* namespace Hal */
 
 /*==============================================================================
@@ -612,11 +675,6 @@ static uint16_t BuildIcOperationReg(
 {
     uint16_t data;
 
-    /*
-     * v0.1 policy:
-     * OTSD, PVDD_UVLO2, gate-drive fault and SNS OCP protection enabled.
-     * Watchdog disabled, device awake, CLR_FLTS not asserted.
-     */
     data =
         DRV8305_OTSD_ENABLE |
         DRV8305_WD_DELAY_20MS;

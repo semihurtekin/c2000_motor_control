@@ -334,6 +334,8 @@ public:
     Drv8305Status GetFaultSnapshot(
         Drv8305DiagnosticSnapshot& snapshot);
 
+    Drv8305Status ClearFaults(void);
+
 private:
 
     Drv8305(const Drv8305&);
