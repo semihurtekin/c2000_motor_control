@@ -11,3 +11,9 @@ Release/
 *.out
 *.obj
 *.map
+
+# MATLAB / Simulink generated files
+slprj/
+*.slxc
+*.autosave
+*.asv
