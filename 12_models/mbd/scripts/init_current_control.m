@@ -21,3 +21,7 @@ control.idKi = motor.Rs_Ohm * control.currentBandwidth_radps;
 
 control.iqKp = motor.Lq_H * control.currentBandwidth_radps;
 control.iqKi = motor.Rs_Ohm * control.currentBandwidth_radps;
+
+%% Decoupling feedforward gain
+
+control.feedforwardGain = 1.0;
