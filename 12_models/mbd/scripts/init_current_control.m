@@ -25,3 +25,15 @@ control.iqKi = motor.Rs_Ohm * control.currentBandwidth_radps;
 %% Decoupling feedforward gain
 
 control.feedforwardGain = 1.0;
+
+%% Voltage limitation parameters
+
+control.dcBusVoltage_V = 12.0;
+control.voltageLimit_V = control.dcBusVoltage_V / sqrt(3);
+
+%% Anti-Windup gain parameters
+
+control.idAntiWindupGain_per_s = control.idKi / control.idKp;
+control.iqAntiWindupGain_per_s = control.iqKi / control.iqKp;
+
+control.antiWindupEnable = 1;
